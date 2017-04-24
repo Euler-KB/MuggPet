@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!--This is the primary color of the app. This color will be applied as toolbar background-->
+    <color name="primaryColor">#cddc39</color>
+
+    <!--This is darkest primary color of the app mainly applies to notification bar background.-->
+    <color name="primaryColorDark">#4b6e00</color>
+
+    <!--This is the primary color of text. This applies to toolbar title-->
+    <color name="textColorPrimary">#ffffff</color>
+
+    <!--This is the default background color of the app.-->
+    <color name="windowBackground">#393939</color>
+
+    <!--The accent color-->
+    <color name="accentColor">#5f5f5f</color>
+
+</resources>
