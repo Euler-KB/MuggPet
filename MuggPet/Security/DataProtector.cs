@@ -16,7 +16,7 @@ using System.Reflection;
 namespace MuggPet.Security
 {
     /// <summary>
-    /// Represents an internal handler for data protections
+    /// Represents an internal handler for symmetric data protections
     /// </summary>
     public interface IDataProtectorHandler
     {
@@ -41,6 +41,19 @@ namespace MuggPet.Security
         /// <returns>The binary representation of the payload</returns>
         byte[] ConvertToBlob(string payload);
 
+        /// <summary>
+        /// Protects the given binary data with the given symmetric key
+        /// </summary>
+        /// <param name="data">The data to protect</param>
+        /// <param name="key">The symmetric key for protection</param>
+        byte[] Protect(byte[] data, byte[] key);
+
+        /// <summary>
+        /// Deciphers the given binary data with the given key
+        /// </summary>
+        /// <param name="data">The protected data</param>
+        /// <param name="key">The symmetric key</param>
+        byte[] UnProtect(byte[] data, byte[] key);
     }
 
     /// <summary>
@@ -77,6 +90,45 @@ namespace MuggPet.Security
             public string ConvertToString(byte[] blob)
             {
                 return Convert.ToBase64String(blob);
+            }
+
+            public byte[] Protect(byte[] data, byte[] key)
+            {
+                using (var provider = new AesCryptoServiceProvider())
+                using (var ms = new MemoryStream())
+                using (var bw = new BinaryWriter(ms))
+                {
+                    //
+                    provider.GenerateIV();
+                    provider.Mode = CipherMode.ECB;
+                    provider.Padding = PaddingMode.PKCS7;
+
+                    provider.Key = key;
+                    bw.Write(provider.IV.Length);
+                    bw.Write(provider.IV);
+
+                    using (var encryptor = provider.CreateEncryptor())
+                        bw.Write(encryptor.TransformFinalBlock(data, 0, data.Length));
+
+                    ms.Flush();
+                    return ms.ToArray();
+                }
+            }
+
+            public byte[] UnProtect(byte[] data, byte[] key)
+            {
+                using (var provider = new AesCryptoServiceProvider())
+                using (var rd = new BinaryReader(new MemoryStream(data)))
+                {
+                    provider.Mode = CipherMode.ECB;
+                    provider.Padding = PaddingMode.PKCS7;
+
+                    using (var decryptor = provider.CreateDecryptor(key, rd.ReadBytes(rd.ReadInt32())))
+                    {
+                        byte[] content = rd.ReadBytes((int)(rd.BaseStream.Length - rd.BaseStream.Position));
+                        return decryptor.TransformFinalBlock(content, 0, content.Length);
+                    }
+                }
             }
         }
 
@@ -115,25 +167,7 @@ namespace MuggPet.Security
 
         public byte[] EncryptRaw(byte[] dataBytes)
         {
-            using (var provider = new AesCryptoServiceProvider())
-            using (var ms = new MemoryStream())
-            using (var bw = new BinaryWriter(ms))
-            {
-                //
-                provider.GenerateIV();
-                provider.Mode = CipherMode.ECB;
-                provider.Padding = PaddingMode.PKCS7;
-
-                provider.Key = binarySecretKey;
-                bw.Write(provider.IV.Length);
-                bw.Write(provider.IV);
-
-                using (var encryptor = provider.CreateEncryptor())
-                    bw.Write(encryptor.TransformFinalBlock(dataBytes, 0, dataBytes.Length));
-
-                ms.Flush();
-                return ms.ToArray();
-            }
+            return _protectionHandler.Protect(dataBytes, binarySecretKey);
         }
 
         public string Encrypt(string raw)
@@ -148,18 +182,7 @@ namespace MuggPet.Security
 
         public byte[] DecryptRaw(byte[] blob)
         {
-            using (var provider = new AesCryptoServiceProvider())
-            using (var rd = new BinaryReader(new MemoryStream(blob)))
-            {
-                provider.Mode = CipherMode.ECB;
-                provider.Padding = PaddingMode.PKCS7;
-
-                using (var decryptor = provider.CreateDecryptor(binarySecretKey, rd.ReadBytes(rd.ReadInt32())))
-                {
-                    byte[] content = rd.ReadBytes((int)(rd.BaseStream.Length - rd.BaseStream.Position));
-                    return decryptor.TransformFinalBlock(content, 0, content.Length);
-                }
-            }
+            return _protectionHandler.UnProtect(blob, binarySecretKey);
         }
 
         public string Decrypt(string payload)

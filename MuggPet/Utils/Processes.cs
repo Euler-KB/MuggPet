@@ -10,12 +10,12 @@ using Android.Runtime;
 using Android.Views;
 using Android.Widget;
 
-namespace MuggPet.Activity
+namespace MuggPet.Utils
 {
     /// <summary>
-    /// Supplies activity state determining helpers
+    /// Supplies process helpers
     /// </summary>
-    public static class ActivityHelpers
+    public static class Processes
     {
         /// <summary>
         /// Returns the name of the current process

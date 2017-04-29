@@ -564,7 +564,6 @@ namespace MuggTester
 			global::MuggPet.Resource.Layout.abc_search_view = global::MuggTester.Resource.Layout.abc_search_view;
 			global::MuggPet.Resource.Layout.abc_select_dialog_material = global::MuggTester.Resource.Layout.abc_select_dialog_material;
 			global::MuggPet.Resource.Layout.abc_simple_dropdown_hint = global::MuggTester.Resource.Layout.abc_simple_dropdown_hint;
-			global::MuggPet.Resource.Layout.app_toolbar_layout = global::MuggTester.Resource.Layout.app_toolbar_layout;
 			global::MuggPet.Resource.Layout.BasePreferenceLayout = global::MuggTester.Resource.Layout.BasePreferenceLayout;
 			global::MuggPet.Resource.Layout.notification_media_action = global::MuggTester.Resource.Layout.notification_media_action;
 			global::MuggPet.Resource.Layout.notification_media_cancel_action = global::MuggTester.Resource.Layout.notification_media_cancel_action;
@@ -578,6 +577,7 @@ namespace MuggTester
 			global::MuggPet.Resource.Layout.select_dialog_multichoice_material = global::MuggTester.Resource.Layout.select_dialog_multichoice_material;
 			global::MuggPet.Resource.Layout.select_dialog_singlechoice_material = global::MuggTester.Resource.Layout.select_dialog_singlechoice_material;
 			global::MuggPet.Resource.Layout.support_simple_spinner_dropdown_item = global::MuggTester.Resource.Layout.support_simple_spinner_dropdown_item;
+			global::MuggPet.Resource.Layout.ToolbarLayout = global::MuggTester.Resource.Layout.ToolbarLayout;
 			global::MuggPet.Resource.String.abc_action_bar_home_description = global::MuggTester.Resource.String.abc_action_bar_home_description;
 			global::MuggPet.Resource.String.abc_action_bar_home_description_format = global::MuggTester.Resource.String.abc_action_bar_home_description_format;
 			global::MuggPet.Resource.String.abc_action_bar_home_subtitle_description_format = global::MuggTester.Resource.String.abc_action_bar_home_subtitle_description_format;
@@ -2944,6 +2944,9 @@ namespace MuggTester
 			// aapt resource value: 0x7f0c002a
 			public const int bottom = 2131492906;
 			
+			// aapt resource value: 0x7f0c008c
+			public const int btnCancel = 2131493004;
+			
 			// aapt resource value: 0x7f0c0083
 			public const int btnCapture = 2131492995;
 			
@@ -2955,6 +2958,9 @@ namespace MuggTester
 			
 			// aapt resource value: 0x7f0c006b
 			public const int btnGetDetails = 2131492971;
+			
+			// aapt resource value: 0x7f0c008d
+			public const int btnLogin = 2131493005;
 			
 			// aapt resource value: 0x7f0c0084
 			public const int btnTakePicture = 2131492996;
@@ -3076,8 +3082,17 @@ namespace MuggTester
 			// aapt resource value: 0x7f0c0081
 			public const int info = 2131492993;
 			
+			// aapt resource value: 0x7f0c008a
+			public const int lbErrorCredentials = 2131493002;
+			
+			// aapt resource value: 0x7f0c0089
+			public const int lbPasswordError = 2131493001;
+			
 			// aapt resource value: 0x7f0c0074
 			public const int lbTotalItems = 2131492980;
+			
+			// aapt resource value: 0x7f0c0087
+			public const int lbUsernameError = 2131492999;
 			
 			// aapt resource value: 0x7f0c0033
 			public const int left = 2131492915;
@@ -3112,6 +3127,9 @@ namespace MuggTester
 			// aapt resource value: 0x7f0c0075
 			public const int myList = 2131492981;
 			
+			// aapt resource value: 0x7f0c008e
+			public const int myListView = 2131493006;
+			
 			// aapt resource value: 0x7f0c0073
 			public const int mySpinner = 2131492979;
 			
@@ -3129,6 +3147,9 @@ namespace MuggTester
 			
 			// aapt resource value: 0x7f0c0044
 			public const int parentPanel = 2131492932;
+			
+			// aapt resource value: 0x7f0c008b
+			public const int pgbBusy = 2131493003;
 			
 			// aapt resource value: 0x7f0c0029
 			public const int pin = 2131492905;
@@ -3196,8 +3217,8 @@ namespace MuggTester
 			// aapt resource value: 0x7f0c0065
 			public const int select_dialog_listview = 2131492965;
 			
-			// aapt resource value: 0x7f0c0086
-			public const int settings_action = 2131492998;
+			// aapt resource value: 0x7f0c008f
+			public const int settings_action = 2131493007;
 			
 			// aapt resource value: 0x7f0c0050
 			public const int shortcut = 2131492944;
@@ -3246,6 +3267,12 @@ namespace MuggTester
 			
 			// aapt resource value: 0x7f0c000c
 			public const int tabMode = 2131492876;
+			
+			// aapt resource value: 0x7f0c0088
+			public const int tbPassword = 2131493000;
+			
+			// aapt resource value: 0x7f0c0086
+			public const int tbUsername = 2131492998;
 			
 			// aapt resource value: 0x7f0c0080
 			public const int text = 2131492992;
@@ -3491,6 +3518,12 @@ namespace MuggTester
 			
 			// aapt resource value: 0x7f030034
 			public const int tab2 = 2130903092;
+			
+			// aapt resource value: 0x7f030035
+			public const int ToolbarLayout = 2130903093;
+			
+			// aapt resource value: 0x7f030036
+			public const int visual_states_layout = 2130903094;
 			
 			static Layout()
 			{

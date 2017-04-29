@@ -15,6 +15,8 @@ using Android.Views;
 using MuggPet.Commands;
 using MuggPet.Activity.Attributes;
 using MuggPet.Utils.Adapter;
+using System.Threading.Tasks;
+using Android.Graphics;
 
 namespace MuggTester
 {
@@ -56,7 +58,38 @@ namespace MuggTester
 
             [BindID(Resource.Id.car_color, StringFormat = "Color: {0}")]
             public string Color { get; set; }
+
+            [BindColor(Resource.Id.car_color, Mode = ColorSetMode.Background)]
+            public Color CarColor
+            {
+                get
+                {
+                    switch (Color)
+                    {
+                        case "Red":
+                            return Android.Graphics.Color.Red;
+                        case "Green":
+                            return Android.Graphics.Color.Green;
+                        case "Ash":
+                            return Android.Graphics.Color.LightGray;
+                        case "Grey":
+                            return Android.Graphics.Color.Gray;
+                        case "Pink":
+                            return Android.Graphics.Color.Pink;
+                        case "Blue":
+                            return Android.Graphics.Color.Blue;
+                        case "Violet":
+                            return Android.Graphics.Color.Violet;
+                    }
+
+                    return Android.Graphics.Color.Black;
+                }
+            }
         }
+
+        [BindAdapter(Resource.Id.myList, ItemLayout = Resource.Layout.car_item_layout)]
+        [SortDescription(Property = "EngineCapacity", Mode = SortOrder.Descending)]
+        public Car[] cars;
 
         [BindID(Resource.Id.btnClick)]
         Button btnClick = null;
@@ -127,6 +160,13 @@ namespace MuggTester
             LoadDataSource();
         }
 
+        protected override Task OnBind()
+        {
+            LoadDataSource();
+
+            return base.OnBind();
+        }
+
         void LoadDataSource()
         {
             // load data source
@@ -150,8 +190,6 @@ namespace MuggTester
             //  create suppor toolbar here
             AttachSupportToolbar();
 
-            //  bind all 
-            this.BindObjectToView(this);
 
             //
             //var adapter = ((GenericAdapter<Car>)myList.Adapter);

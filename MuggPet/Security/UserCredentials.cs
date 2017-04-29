@@ -64,11 +64,19 @@ namespace MuggPet.Security
         /// </summary>
         public IDictionary<string, string> Properties { get; private set; }
 
+        /// <summary>
+        /// Initializes user credentials 
+        /// </summary>
         public UserCredentials()
         {
             Properties = new Dictionary<string, string>();
         }
 
+        /// <summary>
+        /// Initializes user credentials with name and password
+        /// </summary>
+        /// <param name="username">The username of the user</param>
+        /// <param name="password">The password of the user</param>
         public UserCredentials(string username, string password) : this()
         {
             Username = username;

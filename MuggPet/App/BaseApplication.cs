@@ -9,24 +9,65 @@ using Android.OS;
 using Android.Runtime;
 using Android.Views;
 using Android.Widget;
+using System.Reflection;
 
-[assembly: MuggPet.App.Lifecycle(typeof(MuggPet.App.BaseApplication), "OnResumeActivity", MuggPet.App.LifecycleScope.ActivityResumed)]
 namespace MuggPet.App
 {
     /// <summary>
     /// Represents the base application class
     /// </summary>
-    public abstract class BaseApplication : Application
+    public abstract class BaseApplication : Application, Application.IActivityLifecycleCallbacks, IDispatchLifecycleEvents
     {
         #region Life cycle listener
 
-        /// <summary>
-        /// Invoked when an activity is resumed
-        /// </summary>
-        /// <param name="activity">The resumed activity</param>
-        static void OnResumeActivity(Android.App.Activity activity)
+        public void OnActivityCreated(Android.App.Activity activity, Bundle savedInstanceState)
         {
+            ActivityCreated?.Invoke(activity, savedInstanceState);
+        }
+
+        public void OnActivityDestroyed(Android.App.Activity activity)
+        {
+            ActivityDestroyed?.Invoke(activity);
+        }
+
+        public void OnActivityPaused(Android.App.Activity activity)
+        {
+            ActivityPaused?.Invoke(activity);
+        }
+
+        public void OnActivityResumed(Android.App.Activity activity)
+        {
+            //  Assign current activity on resumne
             CurrentActivity = activity;
+
+            ActivityResumed?.Invoke(activity);
+        }
+
+        public void OnActivitySaveInstanceState(Android.App.Activity activity, Bundle outState)
+        {
+            ActivitySaveInstanceState?.Invoke(activity, outState);
+        }
+
+        public void OnActivityStarted(Android.App.Activity activity)
+        {
+           
+            ActivityStarted?.Invoke(activity);
+        }
+
+        public void OnActivityStopped(Android.App.Activity activity)
+        {
+            ActivityStopped?.Invoke(activity);
+        }
+
+
+        void SetupLifecycleCallback()
+        {
+            //  Ensure we're running only compatible platforms
+            if ((int)Build.VERSION.SdkInt >= 14)
+            {
+                //  register life cycle callback
+                RegisterActivityLifecycleCallbacks(this);
+            }
         }
 
         #endregion
@@ -36,8 +77,28 @@ namespace MuggPet.App
         /// </summary>
         public static Android.App.Activity CurrentActivity { get; private set; }
 
+        /// <summary>
+        /// Gets the current application instance
+        /// </summary>
+        public static BaseApplication Current { get; private set; }
 
         private IDictionary<string, object> _properties;
+
+        public event ActivityLifecycleDelegate ActivityStarted;
+
+        public event ActivityLifecycleDelegate ActivityStopped;
+
+        public event ActivityLifecycleDelegate ActivityDestroyed;
+
+        public event ActivityLifecycleDelegate ActivityResumed;
+
+        public event ActivityLifecycleDelegate ActivityPaused;
+
+        public event ActivityLifecycleDelegate ActivityRestarted;
+
+        public event ActivityLifecycleDelegate<Bundle> ActivityCreated;
+
+        public event ActivityLifecycleDelegate<Bundle> ActivitySaveInstanceState;
 
         /// <summary>
         /// Exposes an in-memory key-value pair of properties for storing temporary data
@@ -78,16 +139,21 @@ namespace MuggPet.App
         /// </summary>
         protected virtual void OnLoadComponents()
         {
-            //  Load all application components here...
+            //  assign current activity
+            Current = this;
+
+            //  Load components
 
             //  Initialize application properties 
             _properties = new Dictionary<string, object>();
 
-            //  Initialize life cycle manager
-            LifeCycleManager.Initialize(typeof(BaseApplication).Assembly, GetType().Assembly);
+            //  Listen for activity lifecycle messages
+            SetupLifecycleCallback();
 
             //  TODO: Override and implement custom component initialization
 
         }
+
+
     }
 }

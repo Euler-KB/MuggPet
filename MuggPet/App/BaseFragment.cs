@@ -11,15 +11,35 @@ using Android.Util;
 using Android.Views;
 using Android.Widget;
 using MuggPet.Activity;
+using MuggPet.Activity.VisualState;
+using MuggPet.Binding;
 
 namespace MuggPet.App
 {
     /// <summary>
     /// Represents the base fragment for all activity fragments
     /// </summary>
-    public abstract class BaseFragment : Android.Support.V4.App.Fragment
+    public abstract class BaseFragment : Android.Support.V4.App.Fragment , ISupportBinding  , IVisualStateManager
     {
         private int layoutID;
+
+        IBindingHandler bindingHandler;
+        public IBindingHandler BindingHandler
+        {
+            get
+            {
+                return bindingHandler ?? (bindingHandler = new BindingHandler());
+            }
+        }
+
+        VisualStateManager visualStateManager;
+        public VisualStateManager VisualState
+        {
+            get
+            {
+                return visualStateManager ?? (visualStateManager = new VisualStateManager((ViewGroup)View));
+            }
+        }
 
         /// <summary>
         /// Initializes a new fragment with specified layout to be loaded
@@ -38,15 +58,31 @@ namespace MuggPet.App
             await OnBind();
 
             //
+            OnHandleVisualStates();
+
+            //
             OnLoaded();
+        }
+
+        protected virtual void OnHandleVisualStates()
+        {
+            VisualState.BeginStateDefinition();
+
+            OnDefineVisualStates();
+
+            VisualState.FinalizeStateDefinition();
+        }
+
+        protected virtual void OnDefineVisualStates()
+        {
+
         }
 
         protected virtual Task OnBind()
         {
             //  Attach view to fragment
-            Binding.BindingManager.AttachViews(this);
+            this.AttachViews();
 
-            //
             return Task.FromResult(0);
         }
 

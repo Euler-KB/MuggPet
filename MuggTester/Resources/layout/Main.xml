@@ -6,7 +6,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:orientation="vertical" >
 
-    <include layout="@layout/app_toolbar_layout"/>
+    <include layout="@layout/ToolbarLayout"/>
 
     <SearchView
         android:id="@+id/searchBox"

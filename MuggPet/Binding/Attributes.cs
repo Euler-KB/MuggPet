@@ -38,9 +38,9 @@ namespace MuggPet.Binding
         NoResource = 0x200000,
 
         /// <summary>
-        /// Disables command binding
+        /// Disables object binding
         /// </summary>
-        NoObjectBinding = 0x400000
+        NoCommand = 0x400000,
 
     }
 
@@ -73,150 +73,8 @@ namespace MuggPet.Binding
 
     }
 
-    internal static class BindingUtils
-    {
-        /// <summary>
-        /// Determines whether the type is formattable and single line element
-        /// </summary>
-        static internal bool IsFormattablePrimitiveType(Type vType)
-        {
-            return vType.IsPrimitive || vType == typeof(DateTime) || vType == typeof(DateTimeOffset) ||
-                    vType == typeof(TimeSpan) || vType == typeof(string) || vType == typeof(decimal);
-        }
-
-        /// <summary>
-        /// Formats a primitive value with specified formatting arguments
-        /// </summary>
-        /// <param name="value">The value to format</param>
-        /// <param name="format">The formatting to apply</param>
-        /// <returns>Returns the formatted value</returns>
-        static internal object FormatPrimitive(object value, string format)
-        {
-            return string.Format(format ?? "{0}", value);
-        }
-
-        static internal object UnformatPrimitive(string value, string format)
-        {
-            string realFormat = format ?? "{0}";
-            int startIndex = realFormat.IndexOf("{0");
-            if (startIndex == -1)
-                throw new BindingException("Cannot convert formatted value!");
-
-            //
-            int lBrace = realFormat.IndexOf('}', startIndex);
-            if (lBrace == -1)
-                throw new BindingException("Invalid format expression! Cannot convert formatted value!");
-
-            //
-            if (lBrace == realFormat.Length - 1)
-                return value.Substring(startIndex);
-
-            //
-            int destIndex = value.LastIndexOf(format.Substring(lBrace + 1));
-            if (destIndex == -1)
-                throw new BindingException("Invalid format expression! Cannot convert formatted value!");
-
-            //
-            return value.Substring(startIndex, destIndex - startIndex);
-        }
-
-        static internal object GetPropertyValue(object source, string propertyName, Type propertyType, object defaultValue, string format)
-        {
-            var propInfo = source.GetType().GetProperty(propertyName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-            if (propInfo == null)
-                return defaultValue;
-
-            //
-            var finalValue = propInfo.GetValue(source);
-            if (format != null && propInfo.PropertyType == typeof(string))
-            {
-                finalValue = UnformatPrimitive((string)finalValue, format);
-            }
-
-            //
-            return Convert.ChangeType(finalValue, propertyType);
-        }
-
-        static internal void BindProperties(object source, string propertyName, string defaultProperty, object value, string format)
-        {
-            var propInfo = source.GetType().GetProperty(propertyName ?? defaultProperty, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-            if (propInfo == null)
-                throw new BindingException($"The requested property name '{propertyName ?? defaultProperty}' was not found upon binding");
-
-            //
-            object finalValue = value;
-            if (format != null && propInfo.PropertyType == typeof(string))
-            {
-                finalValue = FormatPrimitive(value, format);
-            }
-
-            //  do we have compatible types yet??
-            if (propInfo.PropertyType != finalValue.GetType())
-            {
-                //  try converting to destination type (:--
-                finalValue = Convert.ChangeType(finalValue, propInfo.PropertyType);
-            }
-
-            //  set value finally
-            propInfo.SetValue(source, finalValue);
-        }
-
-        static internal void BindMethod(object source, string methodName, object value, string format)
-        {
-            var methodInfo = source.GetType().GetMethod(methodName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-            if (methodInfo == null)
-                throw new BindingException($"The requested method '{methodName}' was not found prior to binding");
-
-            //
-            object parameterValue = value;
-            var pms = methodInfo.GetParameters();
-            if (pms.Length == 0)
-                throw new BindingException("The specified method has no arguments!");
-
-            //
-            var pType = pms[0].GetType();
-            if (format != null && pType == typeof(string) && format != null)
-            {
-                var vType = value.GetType();
-                parameterValue = FormatPrimitive(value, format);
-            }
-
-            //  do we have compatible types yet??
-            if (pType != parameterValue.GetType())
-            {
-                parameterValue = Convert.ChangeType(parameterValue, pType);
-            }
-
-            //  invoke value finally
-            methodInfo.Invoke(source, new[] { parameterValue });
-        }
-
-        static internal void BindAuto(object source, string memberName, string defaultMember, object value, string format)
-        {
-            var methods = source.GetType().GetMember(memberName ?? defaultMember, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-            if (methods != null)
-            {
-                if (methods.Length > 1)
-                    throw new BindingException("Ambiguous target specified! This may be due to the existence of a property and a method of equal names");
-
-                //
-                switch (methods[0].MemberType)
-                {
-                    case MemberTypes.Method:
-                        BindProperties(source, memberName, defaultMember, value, format);
-                        break;
-                    case MemberTypes.Property:
-                        BindMethod(source, memberName, value, format);
-                        break;
-                }
-            }
-
-        }
-
-    }
-
     /// <summary>
-    /// Manages binding of basic and common views to properties and vice versa. Custom functionalities can be implemented through sub classing
+    /// Manages binding of common views to properties and vice versa. Custom functionalities can be implemented through sub classing.
     /// </summary>
     [System.AttributeUsage(AttributeTargets.Property | AttributeTargets.Field, Inherited = false, AllowMultiple = true)]
     public class BindIDAttribute : Attribute, IBindingAttribute
@@ -254,73 +112,65 @@ namespace MuggPet.Binding
             if (propertyType.IsSubclassOf(typeof(View)))
                 return;
 
-            if (propertyType.HasInterface<ICommand>())
+            if (view is TextView || view is EditText)
             {
-                //  bind command to view
-                ICommand cmd = (ICommand)propertyValue;
-                CommandBinding.BindCommand(cmd, view, null);
+                BindingUtils.BindProperties(view, Target, "Text", propertyValue, StringFormat);
             }
-            else
+            else if (view is ToggleButton)
             {
-                if (view is ToggleButton)
+                BindingUtils.BindProperties(view, Target, "Checked", propertyValue, StringFormat);
+            }
+            else if (view is CompoundButton || view is Button)
+            {
+                BindingUtils.BindProperties(view, Target, "Text", propertyValue, StringFormat);
+            }
+            else if (view is RadioGroup)
+            {
+                if (Target == null)
+                    BindingUtils.BindMethod(view, "Check", propertyValue, null);
+                else
+                    BindingUtils.BindAuto(view, Target, "Check", propertyValue, null);
+            }
+            else if (view is SeekBar || view is ProgressBar)
+            {
+                BindingUtils.BindProperties(view, Target, "Progress", propertyValue, null);
+            }
+            else if (view is ToggleButton)
+            {
+                BindingUtils.BindProperties(view, Target, "Checked", propertyValue, null);
+            }
+            else if (view is SearchView)
+            {
+                if (Target == null)
                 {
-                    BindingUtils.BindProperties(view, Target, "Checked", propertyValue, StringFormat);
+                    ((SearchView)view).SetQuery((string)propertyValue, false);
                 }
-                else if (view is CompoundButton || view is Button)
+                else
                 {
-                    BindingUtils.BindProperties(view, Target, "Text", propertyValue, StringFormat);
-                }
-                else if (view is RadioGroup)
-                {
-                    if (Target == null)
-                        BindingUtils.BindMethod(view, "Check", propertyValue, null);
-                    else
-                        BindingUtils.BindAuto(view, Target, "Check", propertyValue, null);
-                }
-                else if (view is SeekBar || view is ProgressBar)
-                {
-                    BindingUtils.BindProperties(view, Target, "Progress", propertyValue, null);
-                }
-                else if (view is ToggleButton)
-                {
-                    BindingUtils.BindProperties(view, Target, "Checked", propertyValue, null);
-                }
-                else if (view is SearchView)
-                {
-                    if (Target == null)
-                    {
-                        ((SearchView)view).SetQuery((string)propertyValue, false);
-                    }
-                    else
-                    {
-                        BindingUtils.BindProperties(view, Target, "Query", propertyValue, StringFormat);
-                    }
-                }
-                else if (view is ImageView)
-                {
-                    if (Target == null)
-                    {
-                        if (propertyType == typeof(int))
-                            BindingUtils.BindMethod(view, "SetImageBitmap", BitmapFactory.DecodeResource(view.Context.Resources, (int)propertyValue), null);
-                        else if (propertyType == typeof(Bitmap))
-                            BindingUtils.BindMethod(view, "SetImageBitmap", (Bitmap)propertyValue, null);
-                    }
-                    else
-                    {
-                        BindingUtils.BindAuto(view, Target, "SetImageBitmap", propertyValue, null);
-                    }
-                }
-                else if (view is TextView || view is EditText)
-                {
-                    BindingUtils.BindProperties(view, Target, "Text", propertyValue, StringFormat);
+                    BindingUtils.BindProperties(view, Target, "Query", propertyValue, StringFormat);
                 }
             }
+            else if (view is ImageView)
+            {
+                if (Target == null)
+                {
+                    if (propertyType == typeof(int))
+                        BindingUtils.BindMethod(view, "SetImageBitmap", BitmapFactory.DecodeResource(view.Context.Resources, (int)propertyValue), null);
+                    else if (propertyType == typeof(Bitmap))
+                        BindingUtils.BindMethod(view, "SetImageBitmap", (Bitmap)propertyValue, null);
+                }
+                else
+                {
+                    BindingUtils.BindAuto(view, Target, "SetImageBitmap", propertyValue, null);
+                }
+            }
+
         }
 
         public object OnBindViewValueToProperty(View view, Type propertyType)
         {
             Type viewType = view.GetType();
-            if (propertyType == typeof(ICommand))
+            if (propertyType.HasInterface<ICommand>())
                 return null;
 
             //
@@ -346,6 +196,158 @@ namespace MuggPet.Binding
     }
 
     /// <summary>
+    /// Inidcates the mode of color application
+    /// </summary>
+    public enum ColorSetMode
+    {
+        /// <summary>
+        /// Applies the color to the background of the view
+        /// </summary>
+        Background,
+
+        /// <summary>
+        /// Applies the color to the foreground(text color...etc) of the view
+        /// </summary>
+        Foreground,
+
+        /// <summary>
+        /// Applies the color to both the foreground and background of the target view
+        /// </summary>
+        Both
+    }
+
+    /// <summary>
+    /// Represents the base interface for all command bindings
+    /// </summary>
+    public interface ICommandBinding
+    {
+        /// <summary>
+        /// The id of the target view (usually button)
+        /// </summary>
+        int ID { get; }
+
+        /// <summary>
+        /// Indicates the command executes asynchronously
+        /// </summary>
+        bool IsAsync { get; set; }
+
+        /// <summary>
+        /// Invoked to perform binding
+        /// </summary>
+        /// <param name="targetView">The view to bind to</param>
+        void OnBind(ICommand command, View targetView);
+
+        /// <summary>
+        /// Invoked to revert binding
+        /// </summary>
+        void OnUnBind(ICommand command, View targetView);
+    }
+
+    /// <summary>
+    /// Used in binding commands to views
+    /// </summary>
+    [AttributeUsage(AttributeTargets.Property | AttributeTargets.Field, AllowMultiple = false, Inherited = false)]
+    public class BindCommand : Attribute, ICommandBinding
+    {
+        public int ID { get; }
+
+        public bool IsAsync { get; set; }
+
+        private ICommand Command { get; set; }
+
+        public BindCommand(int id)
+        {
+            ID = id;
+        }
+
+        public void OnBind(ICommand command, View targetView)
+        {
+            if (!command.Equals(Command))
+            {
+                if (targetView is Button)
+                {
+                    Command = command;
+                    ((Button)targetView).Click += OnBindAction;
+                }
+            }
+        }
+
+        private void OnBindAction(object sender, EventArgs e)
+        {
+            if (Command?.CanExecute(null) == true)
+                Command.Execute(null);
+        }
+
+        public void OnUnBind(ICommand command, View targetView)
+        {
+            if (targetView is Button && Command.Equals(command))
+            {
+                ((Button)targetView).Click -= OnBindAction;
+                Command = null;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Useful for binding color properties to views
+    /// </summary>
+    public class BindColor : Attribute, IBindingAttribute
+    {
+        public int ID { get; private set; }
+
+        public ColorSetMode Mode { get; set; } = ColorSetMode.Foreground;
+
+        public BindColor(int id)
+        {
+            ID = id;
+        }
+
+        public bool CanAttachView(View view, MemberInfo memberInfo, Type memberType)
+        {
+            return false;
+        }
+
+        public void OnBindPropertyToView(View view, object propertyValue, Type propertyType, MemberInfo memberInfo)
+        {
+            if (propertyType == typeof(Color))
+            {
+                var color = (Color)propertyValue;
+                if (Mode == ColorSetMode.Both || Mode == ColorSetMode.Foreground)
+                {
+                    OnUpdateForeground(color, view);
+                }
+
+                if (Mode == ColorSetMode.Both || Mode == ColorSetMode.Background)
+                {
+                    OnUpdateBackground(color, view);
+                }
+            }
+        }
+
+        protected virtual void OnUpdateForeground(Color foreground, View view)
+        {
+            if (view is TextView)
+                ((TextView)view).SetTextColor(foreground);
+            else if (view is EditText)
+                ((EditText)view).SetTextColor(foreground);
+            else if (view is Button || view is CompoundButton)
+                ((CompoundButton)view).SetTextColor(foreground);
+            else
+                view.Foreground = new ColorDrawable(foreground);
+        }
+
+        protected virtual void OnUpdateBackground(Color background, View view)
+        {
+            view.SetBackgroundColor(background);
+        }
+
+        public object OnBindViewValueToProperty(View view, Type propertyType)
+        {
+            throw new NotSupportedException();
+        }
+    }
+
+    /// <summary>
     /// Implements the comparison of objects
     /// </summary>
     public interface IAdapterObjectComparer
@@ -359,7 +361,6 @@ namespace MuggPet.Binding
         /// The mode of comparison
         /// </summary>
         SortOrder Mode { get; set; }
-
     }
 
     /// <summary>
@@ -391,12 +392,12 @@ namespace MuggPet.Binding
         public string StringFormat { get; set; }
 
         /// <summary>
-        /// The resource id for string array
+        /// The resource id for string array. If set, will bind string array values with the given id from the resource to the adapter's source
         /// </summary>
         public int ItemsResourceId { get; set; } = -1;
 
         /// <summary>
-        /// The item source for the adapter. This can be used in place of the ItemsResouceId
+        /// The item source for the adapter. This can be used in place of the ItemsResouceId property which fetches it's values from the resource
         /// </summary>
         public object[] ItemsSource { get; set; }
 
@@ -489,10 +490,13 @@ namespace MuggPet.Binding
             }
         }
 
-
+        /// <summary>
+        /// Applies avialable functionalities to the adapter given the member info 
+        /// </summary>
+        /// <param name="adapter">The adapter to receive the functionality update</param>
+        /// <param name="memberInfo">The member to fetch functionalities from</param>
         private GenericAdapter<T> HandleAdapterFunctionality<T>(GenericAdapter<T> adapter, MemberInfo memberInfo)
         {
-            //
             var comparers = memberInfo.GetCustomAttributes().OfType<IAdapterObjectComparer>();
             if (comparers.Count() > 0)
                 adapter.SortDescriptions = comparers.Select(x => new SortDescription() { Mode = x.Mode, Property = x.Property });
@@ -503,6 +507,7 @@ namespace MuggPet.Binding
         public object OnBindViewValueToProperty(View view, Type propertyType)
         {
             //  Not supported in this context yet!
+
             return null;
         }
     }
@@ -586,7 +591,7 @@ namespace MuggPet.Binding
         {
             if (targetType == typeof(string))
                 return context.Resources.GetString(ID);
-            else if (targetType == typeof(string[]))
+            else if (targetType.HasInterface<IEnumerable<string>>())
                 return context.Resources.GetStringArray(ID);
             else if (targetType == typeof(int))
                 return context.Resources.GetInteger(ID);
@@ -596,11 +601,11 @@ namespace MuggPet.Binding
                 return context.Resources.OpenRawResource(ID);
             else if (targetType == typeof(Color))
                 return context.Resources.GetColor(ID, null);
-            else if (targetType == typeof(int[]))
+            else if (targetType.HasInterface<IEnumerable<int>>())
                 return context.Resources.GetIntArray(ID);
             else if (targetType == typeof(System.Xml.XmlReader))
                 return context.Resources.GetXml(ID);
-            else if (targetType == typeof(byte[]))
+            else if (targetType.HasInterface<IEnumerable<byte>>())
                 return BinaryResourceLoader.Load(context, ID);
             else if (targetType == typeof(Bitmap))
                 return BitmapFactory.DecodeResource(context.Resources, ID);
@@ -644,28 +649,8 @@ namespace MuggPet.Binding
 
         public override object LoadResource(Context context, Type targetType)
         {
-            if (targetType == typeof(string[]))
+            if (targetType.HasInterface<IEnumerable<string>>())
                 return context.Resources.GetStringArray(ID);
-
-            return null;
-        }
-    }
-
-    /// <summary>
-    /// Binds a color from resource to the target property or field
-    /// </summary>
-    [System.AttributeUsage(AttributeTargets.Property | AttributeTargets.Field, Inherited = false, AllowMultiple = false)]
-    public sealed class BindColorAttribute : ResourceAttribute
-    {
-        public BindColorAttribute(int ID)
-        {
-            this.id = ID;
-        }
-
-        public override object LoadResource(Context context, Type targetType)
-        {
-            if (targetType == typeof(Color))
-                return context.Resources.GetColor(ID, null);
 
             return null;
         }
@@ -685,7 +670,7 @@ namespace MuggPet.Binding
 
         public override object LoadResource(Context context, Type targetType)
         {
-            if (targetType == typeof(byte[]))
+            if (targetType.HasInterface<IEnumerable<byte>>())
                 return BinaryResourceLoader.Load(context, ID);
             else if (targetType == typeof(Stream))
                 return context.Resources.OpenRawResource(ID);

@@ -22,6 +22,9 @@ namespace MuggPet.Tasks
         T _result;
         string _errorMessage;
 
+        /// <summary>
+        /// Determines whether the task succeeded
+        /// </summary>
         public bool Succeeded
         {
             get
@@ -30,6 +33,10 @@ namespace MuggPet.Tasks
             }
         }
 
+        /// <summary>
+        /// Initializes a new task result
+        /// </summary>
+        /// <param name="result">The result from the task. If null, will be marked as unsuccessful</param>
         public TaskResult(T result)
         {
             _success = result != null;
@@ -42,20 +49,27 @@ namespace MuggPet.Tasks
             _result = result;
         }
 
+        /// <summary>
+        /// Initializes a new task 
+        /// </summary>
+        /// <param name="errorMessage"></param>
         public TaskResult(string errorMessage)
         {
             _success = false;
             _errorMessage = errorMessage;
         }
 
+        /// <summary>
+        /// The output generated from the task
+        /// </summary>
         public T Result
         {
-            get
-            {
-                return _result;
-            }
+            get { return _result; }
         }
 
+        /// <summary>
+        /// Gets associated error messages
+        /// </summary>
         public string ErrorMessage
         {
             get { return _errorMessage; }

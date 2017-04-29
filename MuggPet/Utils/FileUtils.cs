@@ -14,7 +14,7 @@ namespace MuggPet.Utils
 {
     public static class FileUtils
     {
-        public static string Prefix = "muggpet-pfx";
+        public static string Prefix = "muggpet-pfx-";
 
         public static string PostFix = ".temp";
 

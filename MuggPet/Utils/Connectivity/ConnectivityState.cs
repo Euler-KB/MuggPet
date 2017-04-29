@@ -14,17 +14,26 @@ using Android.Net;
 namespace MuggPet.Utils.Connectivity
 {
     /// <summary>
-    /// Manages the network connectivity state
+    /// Manages the network connectivity state.
+    /// Note: Usage requires persmissions
     /// </summary>
     public static class ConnectivityState
     {
+        /// <summary>
+        /// Dispatches changes only when application is foreground
+        /// </summary>
+        public static bool ForegroundOnly { get; set; }
+
         [BroadcastReceiver]
         [IntentFilter(new string[] { ConnectivityManager.ConnectivityAction })]
         internal class ConnectivityReceiver : BroadcastReceiver
         {
             public override void OnReceive(Context context, Intent intent)
             {
-                Changed?.Invoke(this, ConnectivityManager.FromContext(context));
+                if (ForegroundOnly && Processes.IsCurrentForeground || !ForegroundOnly)
+                {
+                    Changed?.Invoke(this, ConnectivityManager.FromContext(context));
+                }
             }
         }
 
@@ -35,7 +44,13 @@ namespace MuggPet.Utils.Connectivity
         /// </summary>
         static ConnectivityState()
         {
-            Application.Context.RegisterReceiver(receiver, new IntentFilter(ConnectivityManager.ConnectivityAction));
+            if (App.BaseApplication.Current == null)
+            {
+                throw new Exception("Cannot start connectivity changes manager. Please ensure your application class derives from MuggPet.App.BaseApplication!");
+            }
+
+            //  Register connectivity changes listener
+            App.BaseApplication.Current.RegisterReceiver(receiver, new IntentFilter(ConnectivityManager.ConnectivityAction));
         }
 
         /// <summary>
@@ -43,6 +58,9 @@ namespace MuggPet.Utils.Connectivity
         /// </summary>
         public static event EventHandler<ConnectivityManager> Changed;
 
+        /// <summary>
+        /// Determines whether the active network is connected
+        /// </summary>
         public static bool IsConnected
         {
             get

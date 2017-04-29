@@ -33,11 +33,19 @@ namespace MuggPet.Activity.Attributes
     [AttributeUsage(AttributeTargets.Property | AttributeTargets.Field | AttributeTargets.Method, AllowMultiple = false, Inherited = false)]
     public class RegisterReceiverAttribute : Attribute
     {
-        public RegisterBehavior Behavior { get; }
+        /// <summary>
+        /// The type of the receiver
+        /// </summary>
+        public Type ReceiverType { get; }
 
-        public RegisterReceiverAttribute(RegisterBehavior behaviour = RegisterBehavior.EnableResume)
+        /// <summary>
+        /// Defines the runtime behaviour of the receiver
+        /// </summary>
+        public RegisterBehavior Behavior { get; set; }
+
+        public RegisterReceiverAttribute(Type receiverType )
         {
-            Behavior = behaviour;
+            ReceiverType = receiverType;
         }
     }
 }

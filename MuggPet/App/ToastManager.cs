@@ -53,9 +53,14 @@ namespace MuggPet.App
         /// <param name="key">The key that represents the group to which the toast belongs</param>
         /// <param name="message">The message to display</param>
         /// <param name="length">The duration of the toast</param>
-        public void Show(string key, string message, ToastLength length = ToastLength.Short)
+        /// <param name="gravity">Gravity flags for adjusting the toast's position on screen. If null, no gravity is applied</param>
+        public void Show(string key, string message, ToastLength length = ToastLength.Short, GravityFlags? gravity = null)
         {
-            ShowToast(key, Toast.MakeText(context, message, length));
+            var toast = Toast.MakeText(context, message, length);
+            if (gravity != null)
+                toast.SetGravity(gravity.Value, 0, 0);
+
+            ShowToast(key, toast);
         }
 
         /// <summary>

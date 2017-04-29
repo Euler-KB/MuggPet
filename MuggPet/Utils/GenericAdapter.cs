@@ -12,9 +12,14 @@ using Android.Widget;
 using MuggPet.Binding;
 using System.Collections.Specialized;
 using System.Reflection;
+using System.Collections;
+using System.ComponentModel;
 
 namespace MuggPet.Utils.Adapter
 {
+    /// <summary>
+    /// Indicates a sorting order
+    /// </summary>
     public enum SortOrder
     {
         /// <summary>
@@ -66,15 +71,18 @@ namespace MuggPet.Utils.Adapter
     /// A generic adapter with filtering, sorting, an out of the box model binding to views and support for INotifyCollectionChanged data sources
     /// </summary>
     /// <typeparam name="T">The entity model type</typeparam>
-    public class GenericAdapter<T> : BaseAdapter<T>
+    public class GenericAdapter<T> : BaseAdapter<T>, ISupportBinding
     {
+        //  An object bind map
+        private IDictionary<object, View> _objectBindMap = new Dictionary<object, View>();
+
         //  Holds the sort description for the adapater
         private IEnumerable<SortDescription> _sortDescriptions = null;
 
         /// <summary>
         /// Compares two object with a given sort description
         /// </summary>
-        static int InternalCompare(SortDescription desc, object left, object right)
+        protected virtual int InternalCompare(SortDescription desc, object left, object right)
         {
             int cmpValue = 0;
             IComparable cmpLeft = null;
@@ -128,19 +136,19 @@ namespace MuggPet.Utils.Adapter
                         foreach (var desc in _sortDescriptions)
                             desc.UpdateMemberInfo(typeof(T));
 
-                        InternalApplySortDescriptions();
+                        OnApplySortDescriptions();
                     }
                 }
             }
         }
 
-        private void InternalApplySortDescriptions()
+        protected virtual void OnApplySortDescriptions()
         {
             //  set comparer
             _sortComparer = Comparer<T>.Create(new Comparison<T>((T left, T right) =>
                                 _sortDescriptions.Sum(x => InternalCompare(x, left, right))));
 
-            //  sort
+            //  sort afterwards
             InternalSort();
         }
 
@@ -405,7 +413,7 @@ namespace MuggPet.Utils.Adapter
             Source = items;
         }
 
-        private void OnCollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
+        private void OnSourceCollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
         {
             switch (e.Action)
             {
@@ -434,13 +442,27 @@ namespace MuggPet.Utils.Adapter
                 case NotifyCollectionChangedAction.Remove:
                     {
                         foreach (var item in e.OldItems)
+                        {
                             items.Remove((T)item);
+
+                            //  reset binding for removed item
+                            BindingHandler.Destroy(item);
+
+                            //  
+                            _objectBindMap.Remove(item);
+                        }
                     }
                     break;
                 case NotifyCollectionChangedAction.Replace:
                     {
                         for (int i = 0; i < e.OldItems.Count; i++)
                         {
+                            //  reset binding for replaced item
+                            BindingHandler.Destroy(items[i]);
+
+                            //
+                            _objectBindMap.Remove(items[i]);
+
                             T item = (T)e.NewItems[i];
                             if (EnableFiltering && !InternalFilter(item))
                                 items.RemoveAt(i);
@@ -452,7 +474,16 @@ namespace MuggPet.Utils.Adapter
                     }
                     break;
                 case NotifyCollectionChangedAction.Reset:
+
+                    //
                     items.Clear();
+
+                    //  clear object bindings
+                    _objectBindMap.Clear();
+
+                    //  clear all binding operations
+                    BindingHandler.Reset();
+
                     break;
             }
 
@@ -501,9 +532,22 @@ namespace MuggPet.Utils.Adapter
                     cView = LayoutInflater.FromContext(Context).Inflate(onGetItemLayout(item), parent, false);
 
                 if (onBind != null)
+                {
+                    //  This is provided for types that do not support direct binding with the binding framework
                     onBind(cView, item);
+                }
                 else
-                    item.BindObjectToView(cView);
+                {
+
+                    //  Bind object to view
+                    BindingHandler.Destroy(item);
+
+                    BindingExtensions.BindObjectToView(this, item, cView);
+
+                    //  Update or add reference to view binding
+                    _objectBindMap[item] = cView;
+
+                }
 
                 return cView;
             };
@@ -520,17 +564,62 @@ namespace MuggPet.Utils.Adapter
             {
                 if (source != value)
                 {
+                    //  destroy previous routes
+
                     if (source is INotifyCollectionChanged)
-                        ((INotifyCollectionChanged)source).CollectionChanged -= OnCollectionChanged;
+                        ((INotifyCollectionChanged)source).CollectionChanged -= OnSourceCollectionChanged;
+
+                    if (source != null)
+                    {
+                        //  destroy routed changes listener
+                        foreach (var item in source)
+                        {
+                            if (item is INotifyPropertyChanged)
+                                ((INotifyPropertyChanged)item).PropertyChanged -= OnItemPropertyChanged;
+                        }
+                    }
+
+                    //  reset all binding operations
+                    BindingHandler.Reset();
+
+                    //
+                    _objectBindMap.Clear();
 
                     //  set new source
                     source = value;
 
-                    if (source is INotifyCollectionChanged)
-                        ((INotifyCollectionChanged)source).CollectionChanged += OnCollectionChanged;
+                    if (source != null)
+                    {
+                        if (source is INotifyCollectionChanged)
+                            ((INotifyCollectionChanged)source).CollectionChanged += OnSourceCollectionChanged;
+
+                        //  listen for changes in item properties
+                        foreach (var item in source)
+                        {
+                            if (item is INotifyPropertyChanged)
+                                ((INotifyPropertyChanged)item).PropertyChanged += OnItemPropertyChanged;
+                        }
+                    }
 
                     //
                     Refresh();
+                }
+            }
+        }
+
+        protected virtual void OnItemPropertyChanged(object sender, PropertyChangedEventArgs e)
+        {
+            var type = sender.GetType();
+            var member = type.GetMember(e.PropertyName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic).FirstOrDefault(x => x.MemberType == MemberTypes.Field || x.MemberType == MemberTypes.Property);
+            if (member != null)
+            {
+                if (member.GetCustomAttributes().OfType<IBindingAttribute>().Any())
+                {
+                    View bindedView;
+                    if (_objectBindMap.TryGetValue(sender, out bindedView))
+                    {
+                        BindingHandler.BindObjectToView(sender, member, bindedView, true);
+                    }
                 }
             }
         }
@@ -539,11 +628,20 @@ namespace MuggPet.Utils.Adapter
 
         public override int Count => items.Count;
 
+        private IBindingHandler bindingHandler;
+        public IBindingHandler BindingHandler
+        {
+            get
+            {
+                return bindingHandler ?? (bindingHandler = new BindingHandler());
+            }
+        }
+
         public override long GetItemId(int position) => position;
 
         public override View GetView(int position, View convertView, ViewGroup parent) => onGetView(position, convertView, parent);
 
-        private void InternalSort()
+        protected virtual void InternalSort()
         {
             if (EnableSorting)
             {
@@ -551,7 +649,7 @@ namespace MuggPet.Utils.Adapter
             }
         }
 
-        private void InternalFilter()
+        protected virtual void InternalFilter()
         {
             if (EnableFiltering)
             {

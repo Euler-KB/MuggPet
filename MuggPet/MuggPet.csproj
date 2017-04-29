@@ -59,8 +59,14 @@
     <Compile Include="Activity\Attributes\MenuActionAttribute.cs" />
     <Compile Include="Activity\AppActivityBase.cs" />
     <Compile Include="Activity\Attributes\RegisterReceiverAttribute.cs" />
+    <Compile Include="Activity\IMenuActionDispatcher.cs" />
+    <Compile Include="Activity\IVisualStateManager.cs" />
+    <Compile Include="Activity\VisualState\Extensions.cs" />
+    <Compile Include="Activity\VisualState\VisualStateManager.cs" />
+    <Compile Include="App\IDispatchLifecycleEvents.cs" />
     <Compile Include="Activity\IStartActivityAsync.cs" />
-    <Compile Include="Activity\Processes.cs" />
+    <Compile Include="Binding\BindingFrame.cs" />
+    <Compile Include="Utils\Processes.cs" />
     <Compile Include="Animation\BetwixtInterpolator.cs" />
     <Compile Include="Animation\Betwixt\Annotations.cs" />
     <Compile Include="Animation\Betwixt\Ease.cs" />
@@ -71,12 +77,18 @@
     <Compile Include="Animation\ViewAnimationExtensions.cs" />
     <Compile Include="App\BaseApplication.cs" />
     <Compile Include="App\BaseFragment.cs" />
-    <Compile Include="App\LifecycleManagement.cs" />
     <Compile Include="App\Settings.cs" />
     <Compile Include="App\ToastManager.cs" />
     <Compile Include="Assets\AssetsHelperExtensions.cs" />
     <Compile Include="Binding\Attributes.cs" />
+    <Compile Include="Binding\BindingException.cs" />
+    <Compile Include="Binding\BindingHandler.cs" />
+    <Compile Include="Binding\BindingExtensions.cs" />
     <Compile Include="Binding\BindingManager.cs" />
+    <Compile Include="Binding\BindingUtils.cs" />
+    <Compile Include="Binding\BindState.cs" />
+    <Compile Include="Binding\IBindingHandler.cs" />
+    <Compile Include="Binding\ISupportBinding.cs" />
     <Compile Include="Commands\CommandBinding.cs" />
     <Compile Include="Commands\ICommand.cs" />
     <Compile Include="Commands\RelayCommand.cs" />
@@ -101,6 +113,7 @@
     <Compile Include="Utils\FileUtils.cs" />
     <Compile Include="Utils\GenericAdapter.cs" />
     <Compile Include="Utils\Numerics.cs" />
+    <Compile Include="Utils\SmartActionMode.cs" />
     <Compile Include="Utils\TaskHelpers.cs" />
     <Compile Include="Views\ViewHelper.cs" />
   </ItemGroup>
@@ -118,7 +131,7 @@
     <AndroidResource Include="Resources\Values\Strings.xml" />
     <AndroidResource Include="Resources\Values\styles.xml" />
     <AndroidResource Include="Resources\values-v21\styles.xml" />
-    <AndroidResource Include="Resources\Layout\app_toolbar_layout.xml" />
+    <AndroidResource Include="Resources\Layout\ToolbarLayout.xml" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath)\Xamarin\Android\Xamarin.Android.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

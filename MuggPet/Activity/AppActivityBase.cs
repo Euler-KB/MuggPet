@@ -20,13 +20,14 @@ using System.Reflection;
 using MuggPet.Activity.Attributes;
 using MuggPet.Commands;
 using System.Threading;
+using MuggPet.Activity.VisualState;
 
 namespace MuggPet.Activity
 {
     /// <summary>
-    /// The base for all activities within the application
+    /// Represents the base activity
     /// </summary>
-    public class AppActivityBase : AppCompatActivity, IStartActivityAsync
+    public class AppActivityBase : AppCompatActivity, IStartActivityAsync, ISupportBinding, IMenuActionDispatcher, IVisualStateManager
     {
         #region Start Activity Async 
 
@@ -231,9 +232,10 @@ namespace MuggPet.Activity
         /// <param name="text">The message to toast</param>
         /// <param name="length">The duration of the toast</param>
         /// <param name="key">The key group for the toast</param>
-        protected void ShowToast(string text, ToastLength length = ToastLength.Short, string key = DefaultToastId)
+        /// <param name="gravity">Gravity flags for adjusting the toast's position on screen. If null, no gravity is applied</param>
+        protected void ShowToast(string text, ToastLength length = ToastLength.Short, string key = DefaultToastId, GravityFlags? gravity = null)
         {
-            ToastManager.Show(key, text, length);
+            ToastManager.Show(key, text, length, gravity);
         }
 
         /// <summary>
@@ -242,9 +244,10 @@ namespace MuggPet.Activity
         /// <param name="textId">The text's resource id</param>
         /// <param name="length">The duration of the toast</param>
         /// <param name="key">The key group for the toast</param>
-        protected void ShowToast(int textId, ToastLength length = ToastLength.Short, string key = DefaultToastId)
+        /// <param name="gravity">Gravity flags for adjusting the toast's position on screen. If null, no gravity is applied</param>
+        protected void ShowToast(int textId, ToastLength length = ToastLength.Short, string key = DefaultToastId, GravityFlags? gravity = null)
         {
-            ShowToast(GetString(textId), length, key);
+            ShowToast(GetString(textId), length, key, gravity);
         }
 
         /// <summary>
@@ -308,6 +311,24 @@ namespace MuggPet.Activity
             get { return closeRequested; }
         }
 
+        IBindingHandler bindingHandler;
+        public IBindingHandler BindingHandler
+        {
+            get
+            {
+                return bindingHandler ?? (bindingHandler = new BindingHandler());
+            }
+        }
+
+        VisualStateManager stateManager;
+        public VisualStateManager VisualState
+        {
+            get
+            {
+                return stateManager ?? (stateManager = new VisualStateManager((ViewGroup)this.FindViewById(Android.Resource.Id.Content)));
+            }
+        }
+
         protected AppActivityBase(IntPtr javaReference, JniHandleOwnership transfer) : base(javaReference, transfer)
         {
 
@@ -315,12 +336,6 @@ namespace MuggPet.Activity
 
         protected override async void OnCreate(Bundle savedInstanceState)
         {
-            //  execute lifecycle event
-            if (LifeCycleManager.Initialized)
-            {
-                LifeCycleManager.ExecuteLifecycle(LifecycleScope.ActivityCreated, this);
-            }
-
             //
             Window.AddFlags(WindowManagerFlags.DrawsSystemBarBackgrounds);
 
@@ -334,11 +349,15 @@ namespace MuggPet.Activity
             //  set activity created
             _created = true;
 
+
             // bind views here
             if (layoutID != -1)
             {
                 //  
                 await OnBind();
+
+                //
+                OnHandleVisualStates();
 
                 //  Loaded 
                 OnLoaded();
@@ -349,24 +368,35 @@ namespace MuggPet.Activity
 
         }
 
+        private void OnHandleVisualStates()
+        {
+            //  begin state definition
+            VisualState.BeginStateDefinition();
+
+            //  Define visual states
+            OnDefineVisualStates();
+
+            //  finalize state definition
+            VisualState.FinalizeStateDefinition();
+        }
+
+        protected virtual void OnDefineVisualStates()
+        {
+           //   TODO: Override and define visual states for activity here
+        }
+
         protected virtual Task OnBind()
         {
-            //  bind and attach view here
-            this.AttachViews(layoutID);
+            //  load content view
+            SetContentView(layoutID);
 
+            //  attach views
+            this.AttachViews();
+
+            //
             return Task.FromResult(0);
         }
 
-        protected override void OnResume()
-        {
-            //  execute lifecycle event
-            if (LifeCycleManager.Initialized)
-            {
-                LifeCycleManager.ExecuteLifecycle(LifecycleScope.ActivityResumed, this);
-            }
-
-            base.OnResume();
-        }
 
         /// <summary>
         /// Handles restoring activity state
@@ -385,7 +415,6 @@ namespace MuggPet.Activity
         {
             return true;
         }
-
 
         protected virtual void OnFinalizeClose()
         {
@@ -462,42 +491,27 @@ namespace MuggPet.Activity
             return base.OnKeyDown(keyCode, e);
         }
 
-        protected override void OnStop()
-        {
-            //  execute lifecycle event
-            if (LifeCycleManager.Initialized)
-            {
-                LifeCycleManager.ExecuteLifecycle(LifecycleScope.ActivityMinimized, this);
-            }
-
-            base.OnStop();
-        }
-
         protected virtual void OnHomeButtonPressed()
         {
             Finish();
         }
 
-        protected virtual void OnDispatchMenuItemSelected(IMenuItem item)
+        public bool DispatchSelected(int itemID)
         {
             //
+            bool executed = false;
+
             foreach (var member in GetType().GetMembers(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic).Where(x => x.MemberType == MemberTypes.Field || x.MemberType == MemberTypes.Property || x.MemberType == MemberTypes.Method))
             {
                 var menuAction = member.GetCustomAttribute<MenuActionAttribute>();
-                if (menuAction == null || item.ItemId != menuAction.ID)
+                if (menuAction == null || itemID != menuAction.ID)
                     continue;
 
                 if (member.MemberType == MemberTypes.Method)
                 {
-                    //
-                    var method = ((MethodInfo)member);
-                    object[] parameters = null;
-                    if (method.GetParameters().Count() > 0)
-                        parameters = new[] { item };
-
-                    //
-                    method.Invoke(this, parameters);
-
+                    var mInfo = ((MethodInfo)member);
+                    mInfo.Invoke(this, (mInfo.GetParameters().Length > 0) ? new object[] { itemID } : null);
+                    executed = true;
                 }
                 else if (member.MemberType == MemberTypes.Field)
                 {
@@ -506,8 +520,10 @@ namespace MuggPet.Activity
                     if (val is ICommand)
                     {
                         var cmd = (ICommand)val;
-                        if (cmd.CanExecute(item))
-                            cmd.Execute(item);
+                        if (cmd.CanExecute(itemID))
+                            cmd.Execute(itemID);
+
+                        executed = true;
                     }
                 }
                 else if (member.MemberType == MemberTypes.Property)
@@ -517,17 +533,26 @@ namespace MuggPet.Activity
                     if (val is ICommand)
                     {
                         var cmd = (ICommand)val;
-                        if (cmd.CanExecute(item))
-                            cmd.Execute(item);
+                        if (cmd.CanExecute(itemID))
+                            cmd.Execute(itemID);
+
+                        executed = true;
                     }
                 }
             }
+
+            return executed;
+        }
+
+        protected virtual bool OnDispatchMenuItemSelected(IMenuItem item)
+        {
+            return DispatchSelected(item.ItemId);
         }
 
         public override bool OnOptionsItemSelected(IMenuItem item)
         {
             //  Dispatch selection action
-            OnDispatchMenuItemSelected(item);
+            bool dispatched = OnDispatchMenuItemSelected(item);
 
             //  Did we hit the home button
             if (item.ItemId == Android.Resource.Id.Home)
@@ -536,7 +561,8 @@ namespace MuggPet.Activity
                 return true;
             }
 
-            return base.OnOptionsItemSelected(item);
+            //  was message dispatched ??
+            return dispatched ? true : base.OnOptionsItemSelected(item);
         }
 
         /// <summary>
@@ -661,15 +687,5 @@ namespace MuggPet.Activity
 
         }
 
-        protected override void OnDestroy()
-        {
-            //  execute lifecycle event
-            if (LifeCycleManager.Initialized)
-            {
-                LifeCycleManager.ExecuteLifecycle(LifecycleScope.ActivityDestroyed, this);
-            }
-
-            base.OnDestroy();
-        }
     }
 }

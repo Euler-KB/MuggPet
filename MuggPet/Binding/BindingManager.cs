@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Reflection;
 
 using Android.App;
 using Android.Content;
@@ -10,25 +9,12 @@ using Android.OS;
 using Android.Runtime;
 using Android.Views;
 using Android.Widget;
-using MuggPet.Views;
-using MuggPet.Utils;
-using MuggPet.Commands;
+using System.Reflection;
 
 namespace MuggPet.Binding
 {
     /// <summary>
-    /// Represents a binding exception
-    /// </summary>
-    [Serializable]
-    public class BindingException : Exception
-    {
-        public BindingException() { }
-
-        public BindingException(string message) : base(message) { }
-    }
-
-    /// <summary>
-    /// Manages the binding of views and mapping of objects to views
+    /// The core manager for binding reflection and related work
     /// </summary>
     public static class BindingManager
     {
@@ -38,245 +24,68 @@ namespace MuggPet.Binding
         //  The default member types supported through binding
         private static MemberTypes[] DefaultMemberTypes = new MemberTypes[] { MemberTypes.Property, MemberTypes.Field };
 
-        /// <summary>
-        /// Binds the values from the properties or fields defined in the specified object to the target view
-        /// </summary>
-        /// <param name="obj">The object containing the properties</param>
-        /// <param name="activity">The target activity to receive the values from the object</param>
-        public static void BindObjectToView(this object obj, Android.App.Activity activity)
-        {
-            BindObjectToView(obj, activity.FindViewById(Android.Resource.Id.Content));
-        }
+        static IEnumerable<MemberInfo> GetMembers(Type type) => type.GetMembers(DefaultBindingFlags).Where(x => DefaultMemberTypes.Contains(x.MemberType));
 
-        /// <summary>
-        /// Binds the values from the properties or fields defined in the specified object to the target view
-        /// </summary>
-        /// <param name="obj">The object containing the properties</param>
-        /// <param name="view">The view to receive the values from the object</param>
-        public static void BindObjectToView(this object obj, View view)
+        public static void BindObjectToView(IBindingHandler handler, object obj, View view)
         {
-            var type = obj.GetType();
-            foreach (var member in type.GetMembers(DefaultBindingFlags).Where(x => DefaultMemberTypes.Contains(x.MemberType)))
+            foreach (var member in GetMembers(obj.GetType()))
             {
-                InternalBindObject(obj, view, member);
+                //  bind bindable attributes
+                handler.BindObjectToView(obj, member, view, false);
+
+                //  bind commands
+                handler.BindCommand(obj, member, view, false);
             }
         }
 
-        static void InternalBindObject(object obj, View view, MemberInfo member)
+        public static void AttachViews(IBindingHandler handler, View rootView, object obj, BindFlags flags = BindFlags.None)
         {
-            //  apply all binding attributes
-            foreach (var bindAttrib in member.GetCustomAttributes().OfType<IBindingAttribute>())
+            foreach (var member in GetMembers(obj.GetType()))
             {
-                //  get target view
-                var targetView = view.FindViewById(bindAttrib.ID);
-                if (targetView == null)
-                    continue;
+                //  attach view
+                handler.AttachViewToProperty(rootView, obj, member, false);
 
-                if (member.MemberType == MemberTypes.Field)
-                {
-                    var field = (FieldInfo)member;
-                    var fieldValue = field.GetValue(obj);
-                    bindAttrib.OnBindPropertyToView(targetView, fieldValue, field.FieldType, member);
-                }
-                else if (member.MemberType == MemberTypes.Property)
-                {
-                    var property = (PropertyInfo)member;
-                    var propertyValue = property.GetValue(obj);
-                    bindAttrib.OnBindPropertyToView(targetView, propertyValue, property.PropertyType, property);
-                }
-            }
-        }
-
-        /// <summary>
-        /// Attaches views from the source view to the target object
-        /// </summary>
-        /// <param name="view">The view to find sub views from</param>
-        /// <param name="obj">The object containing</param>
-        /// <param name="flags">Additional flags which determines how views are binded</param>
-        public static void AttachViews(this View view, object obj, BindFlags flags = BindFlags.None)
-        {
-            var type = obj.GetType();
-            foreach (var member in type.GetMembers(DefaultBindingFlags).Where(x => DefaultMemberTypes.Contains(x.MemberType)))
-            {
-                InternalAttachView(view, obj, member, flags);
-
-                //  load resource on the fly
+                //  bind resources
                 if (!flags.HasFlag(BindFlags.NoResource))
                 {
-                    InternalLoadResource(obj, view.Context, member);
+                    handler.BindResource(rootView.Context, obj, member, false);
                 }
 
-                if (!flags.HasFlag(BindFlags.NoObjectBinding))
+                //  bind commands
+                if (!flags.HasFlag(BindFlags.NoCommand))
                 {
-                    InternalBindObject(obj, view, member);
+                    handler.BindCommand(obj, member, rootView, false);
                 }
             }
         }
 
-        static void InternalAttachView(View view, object obj, MemberInfo member, BindFlags flags)
+        public static void BindViewContent(IBindingHandler handler, View view, object obj)
         {
-            //  apply all binding attribute on property or field
-            foreach (var bindAttrib in member.GetCustomAttributes().OfType<IBindingAttribute>())
+            foreach (var member in GetMembers(obj.GetType()))
             {
-                View targetView = view.FindViewById(bindAttrib.ID);
-                if (targetView == null)
-                    continue;
-
-                //  get member type
-                Type memberType = null;
-                if (member.MemberType == MemberTypes.Field)
-                    memberType = ((FieldInfo)member).FieldType;
-                if (member.MemberType == MemberTypes.Property)
-                    memberType = ((PropertyInfo)member).PropertyType;
-
-                //
-                if (!bindAttrib.CanAttachView(view, member, memberType))
-                    continue;
-
-                if (flags.HasFlag(BindFlags.GenerateViewID))
-                    targetView.Id = ViewHelper.NewId;
-
-                if (member.MemberType == MemberTypes.Field)
-                {
-                    var field = (FieldInfo)member;
-                    field.SetValue(obj, targetView);
-                }
-                else if (member.MemberType == MemberTypes.Property)
-                {
-                    var property = (PropertyInfo)member;
-                    property.SetValue(obj, targetView);
-                }
+                handler.BindViewContent(view, obj, member, false);
             }
         }
 
-        #region Extensions
-
-        /// <summary>
-        /// Binds resources from the given context to the destination object
-        /// </summary>
-        /// <param name="target">The destination object</param>
-        /// <param name="context">The context to resolve resources from</param>
-        public static void BindResources(this object target, Context context)
+        public static void BindResources(IBindingHandler handler, object target, Context context)
         {
-            var type = target.GetType();
-            foreach (var member in type.GetMembers(DefaultBindingFlags).Where(x => DefaultMemberTypes.Contains(x.MemberType)))
+            foreach (var member in GetMembers(target.GetType()))
+                handler.BindResource(context, target, member, false);
+        }
+
+        public static void BindCommands(IBindingHandler handler, object source, View view)
+        {
+            foreach (var member in GetMembers(source.GetType()))
+                handler.BindCommand(source, member, view, false);
+        }
+
+        //  Invokes a complete binding operation and provides better performance for multibinding operations
+        public static void Bind(IBindingHandler handler, object source, object target)
+        {
+            foreach (var member in GetMembers(target.GetType()))
             {
-                //  load resource internally
-                InternalLoadResource(target, context, member);
+
             }
         }
-
-        static void InternalLoadResource(object target, Context context, MemberInfo member)
-        {
-            foreach (var resourceAttrib in member.GetCustomAttributes().OfType<IResourceAttribute>())
-            {
-                if (member.MemberType == MemberTypes.Field)
-                {
-                    var field = (FieldInfo)member;
-                    field.SetValue(target, resourceAttrib.LoadResource(context, field.FieldType));
-                }
-                else if (member.MemberType == MemberTypes.Property)
-                {
-                    var property = (PropertyInfo)member;
-                    property.SetValue(target, resourceAttrib.LoadResource(context, property.PropertyType));
-                }
-            }
-        }
-
-        /// <summary>
-        /// Binds or maps the values within all sub views from the source activity to the target object
-        /// </summary>
-        /// <param name="activity">The target activity</param>
-        /// <param name="obj">The object to receive the values from the activity</param>
-        public static void BindValues(this Android.App.Activity activity, object obj)
-        {
-            BindValues(activity.FindViewById(Android.Resource.Id.Content), obj);
-        }
-
-        /// <summary>
-        /// Returns the values within the various views to the destination object
-        /// </summary>
-        /// <param name="view">The view with the values</param>
-        /// <param name="obj">The target object where values from the view is placed</param>
-        public static void BindValues(this View view, object obj)
-        {
-            var type = obj.GetType();
-            foreach (var member in type.GetMembers(DefaultBindingFlags))
-            {
-                InternalBindValue(view, obj, member);
-            }
-        }
-
-        static void InternalBindValue(View view, object obj, MemberInfo member)
-        {
-            foreach (var bindAttrib in member.GetCustomAttributes().OfType<IBindingAttribute>())
-            {
-                var targetView = view.FindViewById(bindAttrib.ID);
-                if (targetView == null)
-                    continue;
-
-                if (member.MemberType == MemberTypes.Field)
-                {
-                    var field = (FieldInfo)member;
-                    field.SetValue(obj, bindAttrib.OnBindViewValueToProperty(view, field.FieldType));
-                }
-                else if (member.MemberType == MemberTypes.Property)
-                {
-                    var property = (PropertyInfo)member;
-                    property.SetValue(obj, bindAttrib.OnBindViewValueToProperty(view, property.PropertyType));
-                }
-            }
-        }
-
-        /// <summary>
-        /// Binds the views from the activity's layout to fields and properties with additional flags
-        /// </summary>
-        /// <param name="activity">The containing activity</param>
-        /// <param name="flags">Optional flags which determine how binding is performed</param>
-        public static void AttachViewsEx(this Android.App.Activity activity, BindFlags flags = BindFlags.None)
-        {
-            //  attach views
-            AttachViews(activity.FindViewById(Android.Resource.Id.Content), activity, flags);
-        }
-
-        /// <summary>
-        /// Attaches the views within the activity's hierarchy to the properties and fields within. 
-        /// The activity's content is inflated with the layout supplied before attaching views.
-        /// </summary>
-        /// <param name="activity">The activity to use</param>
-        /// <param name="layoutID">The resource id of the layout</param>
-        public static void AttachViews(this Android.App.Activity activity, int layoutID)
-        {
-            //  inflate content first
-            activity.SetContentView(layoutID);
-
-            //  attach views
-            AttachViewsEx(activity);
-        }
-
-        /// <summary>
-        /// Attaches the views within the fragment's hierarchy to the properties and fields within. 
-        /// </summary>
-        /// <param name="activity">The activity to use</param>
-        /// <param name="layoutID">The resource id of the layout</param>
-        public static void AttachViews(this Fragment fragment)
-        {
-            //  attach views
-            AttachViews(fragment.View, fragment);
-        }
-
-        /// <summary>
-        /// Attaches the views within the fragment's hierarchy to the properties and fields within. 
-        /// </summary>
-        /// <param name="activity">The activity to use</param>
-        /// <param name="layoutID">The resource id of the layout</param>
-        public static void AttachViews(this Android.Support.V4.App.Fragment fragment)
-        {
-            //  attach views
-            AttachViews(fragment.View, fragment);
-        }
-
-        #endregion
-
     }
 }

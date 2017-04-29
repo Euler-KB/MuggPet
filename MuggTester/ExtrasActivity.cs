@@ -21,7 +21,7 @@ using MuggPet.Utils;
 
 namespace MuggTester
 {
-    [Activity(Label = "Extras Activity", Theme = "@style/AppTheme", MainLauncher = true)]
+    [Activity(Label = "Extras Activity", Theme = "@style/AppTheme", MainLauncher = false)]
     public class ExtrasActivity : AppActivityBase
     {
         public interface ITabPage

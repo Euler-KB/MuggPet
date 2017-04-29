@@ -19,6 +19,8 @@ namespace MuggPet.Tasks.Native
     /// </summary>
     public class SpeechEngineInitializer : TaskBase<bool>
     {
+        public const int TtsCheckDataPass = 1;
+
         /// <summary>
         /// Determines whether to request the user to install language packs if not
         /// </summary>
@@ -36,10 +38,10 @@ namespace MuggPet.Tasks.Native
 
         protected override Task<bool> OnResult(object state, ActivityResultState result)
         {
-            if (result.ResultCode != Result.Ok && RequestInstall)
+            if ((int)result.ResultCode != TtsCheckDataPass && RequestInstall)
             {
                 Intent installIntent = new Intent(TextToSpeech.Engine.ActionInstallTtsData);
-                (HostActivity as Android.App.Activity).StartActivity(installIntent);
+                (HostActivity as Android.App.Activity)?.StartActivity(installIntent);
                 return Task.FromResult(false);
             }
 

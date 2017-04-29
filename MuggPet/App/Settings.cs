@@ -98,9 +98,21 @@ namespace MuggPet.App.Settings
 
         public SettingsManager()
         {
+            //  register for application life cycle events
+            BaseApplication appInstance = BaseApplication.Current;
+            if (appInstance == null)
+                throw new Exception("Cannot use Settings Manager. Please ensure your application class derives from MuggPt.App.BaseApplication!");
+
+            //  automatically save changes when activity is not visible or stopped
+            appInstance.ActivityStopped += (activity) =>
+            {
+                Save();
+            };
+
             //  make new setting instance
             instance = Activator.CreateInstance<TSettings>();
             instance.PropertyChanged += OnPropertyChanged;
+
         }
 
         private void OnPropertyChanged(object sender, PropertyChangedEventArgs e)

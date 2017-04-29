@@ -50,7 +50,7 @@ namespace MuggPet.Animation
     }
 
     /// <summary>
-    /// Specifies the direction of entry
+    /// Specifies the direction of entry for slide in animations
     /// </summary>
     public enum SlideInDirection
     {
@@ -69,9 +69,21 @@ namespace MuggPet.Animation
         BounceInwards
     }
 
+    /// <summary>
+    /// Provides various extensions for view animations
+    /// </summary>
     public static class ViewAnimationExtensions
     {
-
+        /// <summary>
+        /// Fades a view's alpha value to a specified target
+        /// </summary>
+        /// <param name="view">The view to fade</param>
+        /// <param name="target">The target or destination alpha value</param>
+        /// <param name="duration">The duration of the fade</param>
+        /// <param name="delay">The delay before beginning fade</param>
+        /// <param name="from">Indicates the starting fade value. If null, the current fade of the view is used</param>
+        /// <param name="easeFunc">The ease function for the fade animation</param>
+        /// <returns>Returns the orginal view. For fluid syntax usage.</returns>
         public static View AnimateFadeAlphaTo(this View view, float target = 1, long duration = 400, long delay = 0, float? from = null, EaseFunc easeFunc = null)
         {
             var animator = view.Animate();
@@ -86,6 +98,14 @@ namespace MuggPet.Animation
             return view;
         }
 
+        /// <summary>
+        /// Animates a view with a scale effect
+        /// </summary>
+        /// <param name="view">The view to animate</param>
+        /// <param name="scaleEffect">The scale effect to apply</param>
+        /// <param name="duration">The duration of the scale effect</param>
+        /// <param name="delay">The delay</param>
+        /// <returns>Returns the orginal view. For fluid syntax usage.</returns>
         public static View AnimateScaleEffect(this View view, ScaleEffect scaleEffect, int duration = 450, int delay = 20)
         {
             switch (scaleEffect)
@@ -99,6 +119,19 @@ namespace MuggPet.Animation
             return view;
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="view"></param>
+        /// <param name="fromXScale"></param>
+        /// <param name="toXScale"></param>
+        /// <param name="fromYScale"></param>
+        /// <param name="toYScale"></param>
+        /// <param name="duration"></param>
+        /// <param name="delay"></param>
+        /// <param name="isReversed"></param>
+        /// <param name="easeFunc"></param>
+        /// <returns>Returns the orginal view. For fluid syntax usage.</returns>
         public static View AnimateScale(this View view, float fromXScale, float toXScale, float fromYScale, float toYScale, long duration = 400, long delay = 0, bool isReversed = false, EaseFunc easeFunc = null)
         {
             var animator = view.Animate();
@@ -124,6 +157,18 @@ namespace MuggPet.Animation
             return view;
         }
 
+        /// <summary>
+        /// Animates a view with specified sliding effect
+        /// </summary>
+        /// <param name="view">The view to animate</param>
+        /// <param name="offset">The</param>
+        /// <param name="direction"></param>
+        /// <param name="duration"></param>
+        /// <param name="delay"></param>
+        /// <param name="animateAlpha"></param>
+        /// <param name="isReversed"></param>
+        /// <param name="interpolator"></param>
+        /// <returns>Returns the orginal view. For fluid syntax usage.</returns>
         public static View AnimateSlide(this View view, float offset, SlideInDirection direction = SlideInDirection.Top, long duration = 400, long delay = 0, bool animateAlpha = true, bool isReversed = false, BetwixtInterpolator interpolator = null)
         {
             ViewPropertyAnimator animator = view.Animate();
