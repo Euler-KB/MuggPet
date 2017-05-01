@@ -50,7 +50,6 @@ namespace MuggPet.App
 
         public void OnActivityStarted(Android.App.Activity activity)
         {
-           
             ActivityStarted?.Invoke(activity);
         }
 

@@ -21,12 +21,9 @@ namespace MuggPet.Utils.Cursor
     {
         public ICursor cursor;
 
-        private bool hasElements;
-
         public CursorEnumerator(ICursor cursor)
         {
             this.cursor = cursor;
-            hasElements = cursor.MoveToFirst();
         }
 
         public object Current
@@ -52,15 +49,12 @@ namespace MuggPet.Utils.Cursor
 
         public bool MoveNext()
         {
-            if (cursor.IsFirst)
-                return hasElements;
-
             return cursor.MoveToNext();
         }
 
         public void Reset()
         {
-            hasElements = cursor.MoveToFirst();
+            cursor.MoveToFirst();
         }
     }
 

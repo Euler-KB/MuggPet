@@ -26,7 +26,7 @@ namespace MuggPet.Binding
 
         static IEnumerable<MemberInfo> GetMembers(Type type) => type.GetMembers(DefaultBindingFlags).Where(x => DefaultMemberTypes.Contains(x.MemberType));
 
-        public static void BindObjectToView(IBindingHandler handler, object obj, View view)
+        public static void BindObjectToView(IBindingHandler handler, object obj, View view, BindFlags flags = BindFlags.None)
         {
             foreach (var member in GetMembers(obj.GetType()))
             {
@@ -34,7 +34,10 @@ namespace MuggPet.Binding
                 handler.BindObjectToView(obj, member, view, false);
 
                 //  bind commands
-                handler.BindCommand(obj, member, view, false);
+                if (flags.HasFlag(BindFlags.NoCommand))
+                {
+                    handler.BindCommand(obj, member, view, false);
+                }
             }
         }
 

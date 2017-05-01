@@ -12,6 +12,7 @@ using Android.Widget;
 using System.Reflection;
 using MuggPet.Views;
 using MuggPet.Commands;
+using MuggPet.Utils;
 
 namespace MuggPet.Binding
 {
@@ -81,13 +82,13 @@ namespace MuggPet.Binding
             return new List<Attribute>(member.GetCustomAttributes().OfType<IResourceAttribute>().Cast<Attribute>());
         }
 
-        public IList<KeyValuePair<Attribute, View>> ProcessCommandBindings(View target, MemberInfo member)
+        public IList<KeyValuePair<Attribute, View>> ProcessCommandBindings(View containerView, MemberInfo member)
         {
-            List<KeyValuePair<Attribute, View>> appliedBindings = new List<KeyValuePair<Attribute, View>>();
+            var appliedBindings = new List<KeyValuePair<Attribute, View>>();
             foreach (var cmdBind in member.GetCustomAttributes().OfType<ICommandBinding>())
             {
-                var targetView = target.FindViewById(cmdBind.ID);
-                if (target != null && targetView is Button)
+                var targetView = containerView.FindViewById(cmdBind.ID);
+                if (containerView != null && targetView is Button)
                     appliedBindings.Add(new KeyValuePair<Attribute, View>((Attribute)cmdBind, targetView));
             }
 
@@ -98,17 +99,21 @@ namespace MuggPet.Binding
         public bool AttachViewToProperty(View view, object source, MemberInfo member, bool update)
         {
             var frame = GetBindingFrame(source);
-            var existingBindings = frame.ViewAttachment.Where(x => x.Source.Equals(view) &&
-                                                                        x.Target.Equals(source) &&
-                                                                        x.TargetMember.Equals(member));
+            var existingBindings = frame.ViewAttachment.Where(x => x.Target.Equals(source) &&
+                                                                    x.TargetMember.Equals(member));
             if (update && existingBindings.Count() > 0)
             {
                 foreach (var rBinding in existingBindings)
+                {
+                    //  update view before updating bind
+                    rBinding.Source = view.FindViewById(((IBindingAttribute)rBinding.Attribute).ID);
+
                     rBinding.Apply();
+                }
 
                 return true;
             }
-            else if (!update && !existingBindings.Any())
+            else if ((!update && !existingBindings.Any()) ^ update)
             {
                 var bindings = ProcessViewAttachment(view, source, member, BindFlags.None);
                 foreach (var aBind in bindings)
@@ -131,7 +136,6 @@ namespace MuggPet.Binding
 
                 return bindings.Count > 0;
             }
-
 
             return false;
         }
@@ -185,18 +189,22 @@ namespace MuggPet.Binding
         public bool BindViewContent(View view, object source, MemberInfo member, bool update)
         {
             var frame = GetBindingFrame(source);
-            var existingBindings = frame.ViewContentBindings.Where(x => x.Source.Equals(view) &&
-                                                                        x.Target.Equals(source) &&
+            var existingBindings = frame.ViewContentBindings.Where(x => x.Target.Equals(source) &&
                                                                         x.TargetMember.Equals(member));
 
             if (update && existingBindings.Count() > 0)
             {
                 foreach (var rBinding in existingBindings)
+                {
+                    //  update view before updating bind
+                    rBinding.Source = view.FindViewById(((IBindingAttribute)rBinding.Attribute).ID);
+
                     rBinding.Apply();
+                }
 
                 return true;
             }
-            else if (!update && !existingBindings.Any())
+            else if ((!update && !existingBindings.Any()) ^ update)
             {
                 var bindings = ProcessBindableAttributes(source, view, member);
                 foreach (var vBind in bindings)
@@ -254,17 +262,21 @@ namespace MuggPet.Binding
         public bool BindResource(Context context, object target, MemberInfo member, bool update)
         {
             var frame = GetBindingFrame(target);
-            var existingBindings = frame.ResourceBindings.Where(x => x.Source.Equals(context) &&
-                                                                x.Target.Equals(target) &&
-                                                                x.TargetMember.Equals(member));
+            var existingBindings = frame.ResourceBindings.Where(x => x.Target.Equals(target) &&
+                                                                     x.TargetMember.Equals(member));
             if (update && existingBindings.Count() > 0)
             {
                 foreach (var rBinding in existingBindings)
+                {
+                    //  Update context (just in case)
+                    rBinding.Source = context;
+
                     rBinding.Apply();
+                }
 
                 return true;
             }
-            else if (!update && !existingBindings.Any())
+            else if ((!update && !existingBindings.Any()) ^ update)
             {
                 var bindings = ProcessResourceBindings(target, member);
                 foreach (var rBinding in bindings)
@@ -318,11 +330,33 @@ namespace MuggPet.Binding
             return false;
         }
 
+        public bool BindCommandDirect(object source, ICommand command, View destinationView, bool update)
+        {
+            var frame = GetBindingFrame(source);
+            if (command != null && !frame.CommandBindings.Any(x => x.Source.Equals(command) && x.Target.Equals(destinationView)))
+            {
+                var state = new BindState()
+                {
+                    Mode = BindingMode.Command,
+                    Source = command,
+                    Target = destinationView,
+                };
+
+                frame.CommandBindings.Add(state);
+
+                state.Apply();
+
+                return true;
+            }
+
+            return false;
+        }
+
         public bool BindCommand(object source, MemberInfo member, View destinationView, bool update)
         {
             var frame = GetBindingFrame(source);
-            ICommand command = BindState.GetMemberValue(member, source) as ICommand;
-            if (command != null && !frame.ResourceBindings.Any(x => x.Source.Equals(command) && x.Target.Equals(destinationView) && x.TargetMember.Equals(member)))
+            ICommand command = member.GetMemberValue(source) as ICommand;
+            if (command != null && !frame.CommandBindings.Any(x => x.Source.Equals(command) && x.TargetMember.Equals(member)))
             {
                 var bindings = ProcessCommandBindings(destinationView, member);
                 foreach (var cmdBind in bindings)
@@ -355,6 +389,37 @@ namespace MuggPet.Binding
                 InternalDestroyFrame(frame);
 
             _bindingFrames.Clear();
+        }
+
+        public bool UnBindCommand(object source, MemberInfo member, View containerView)
+        {
+            var frame = GetBindingFrame(source);
+            ICommand command = member.GetMemberValue(source) as ICommand;
+            var bindings = frame.CommandBindings.Where(x => x.TargetMember.Equals(member) && x.Source.Equals(command));
+            foreach (var bind in bindings)
+            {
+                bind.Revert();
+                frame.CommandBindings.Remove(bind);
+            }
+
+            return bindings.Count() > 0;
+        }
+
+        public bool UnBindCommandDirect(object source, ICommand command, View targetView)
+        {
+            var frame = GetBindingFrame(source);
+            var bind = frame.CommandBindings.FirstOrDefault(x => x.Source.Equals(command) && x.Target.Equals(targetView) &&
+                //this will ensure it was through direct binding (:-
+                x.TargetMember == null 
+            );
+
+            if (bind != null)
+            {
+                bind.Revert();
+                frame.CommandBindings.Remove(bind);
+            }
+
+            return bind != null;
         }
     }
 

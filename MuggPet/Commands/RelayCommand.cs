@@ -14,7 +14,7 @@ using System.Threading.Tasks;
 namespace MuggPet.Commands
 {
     /// <summary>
-    /// Defines a command that relays control to delegates for operation. The execute action determines whether to run the task on the background or main thread
+    /// Defines a command that relays control to delegates for operation. 
     /// </summary>
     public class RelayCommand : ICommand
     {

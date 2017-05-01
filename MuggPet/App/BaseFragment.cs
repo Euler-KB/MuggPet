@@ -17,13 +17,17 @@ using MuggPet.Binding;
 namespace MuggPet.App
 {
     /// <summary>
-    /// Represents the base fragment for all activity fragments
+    /// Represents the base fragment
     /// </summary>
     public abstract class BaseFragment : Android.Support.V4.App.Fragment , ISupportBinding  , IVisualStateManager
     {
         private int layoutID;
 
         IBindingHandler bindingHandler;
+
+        /// <summary>
+        /// Gets the binding handler instance for this fragment
+        /// </summary>
         public IBindingHandler BindingHandler
         {
             get
@@ -33,6 +37,10 @@ namespace MuggPet.App
         }
 
         VisualStateManager visualStateManager;
+
+        /// <summary>
+        /// Gets the visual state manager for this fragment
+        /// </summary>
         public VisualStateManager VisualState
         {
             get
@@ -89,6 +97,8 @@ namespace MuggPet.App
         protected virtual void OnLoaded()
         {
             //  TODO: Overide and implement loaded logic
+
+
         }
 
         public override View OnCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState)

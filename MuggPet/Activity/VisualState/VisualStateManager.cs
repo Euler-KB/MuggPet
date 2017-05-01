@@ -27,14 +27,25 @@ namespace MuggPet.Activity.VisualState
 
         private VisualState currentState;
 
+        /// <summary>
+        /// Gets the root view for the state manager
+        /// </summary>
         public ViewGroup RootView
         {
             get { return rootView; }
         }
 
+        /// <summary>
+        /// Invoked upon state changes
+        /// </summary>
         public event EventHandler<string> StateChanged;
 
+
+        /// <summary>
+        /// Invoked upon resetting the state manager
+        /// </summary>
         public event EventHandler StateReset;
+
 
         #region State Definition
 
@@ -54,6 +65,10 @@ namespace MuggPet.Activity.VisualState
 
         #endregion
 
+        /// <summary>
+        /// Initializes a new state manager with the given root view
+        /// </summary>
+        /// <param name="rootView">The root view is used for finding sub views when required</param>
         public VisualStateManager(ViewGroup rootView)
         {
             if (rootView == null)
@@ -73,6 +88,9 @@ namespace MuggPet.Activity.VisualState
             }
         }
 
+        /// <summary>
+        /// Returns the name of the current state. Returns null if no state is activated.
+        /// </summary>
         public string CurrentState
         {
             get
@@ -106,7 +124,7 @@ namespace MuggPet.Activity.VisualState
                                     index++;
                                 }
 
-                                //  we are ceratain of state index
+                                //  we are certain of state index
                                 _defaultMemberStates[index] = newState.MemberStates;
 
                                 //  Note: Get the member state for the new state will Build Activation logic so we defer to 
@@ -138,16 +156,34 @@ namespace MuggPet.Activity.VisualState
             }
         }
 
+        /// <summary>
+        /// Returns the names of all registered states
+        /// </summary>
         public string[] StateNames
         {
             get { return visualStates.Select(x => x.Name).ToArray(); }
         }
 
+        /// <summary>
+        /// Returns the names of all combined states
+        /// </summary>
+        public string [] CombinedStates
+        {
+            get { return visualStates.Where(x => x.HasMultipleStates).Select(x => x.Name).ToArray(); }
+        }
+
+        /// <summary>
+        /// Gets the total registered state
+        /// </summary>
         public int TotalStates
         {
             get { return visualStates.Count; }
         }
 
+        /// <summary>
+        /// Returns a visual state object representing the state with the given name
+        /// </summary>
+        /// <param name="name">The name of the state to fetch</param>
         public VisualState GetStateWithName(string name)
         {
             return visualStates.FirstOrDefault(x => x.Name == name);
@@ -170,6 +206,11 @@ namespace MuggPet.Activity.VisualState
             return state;
         }
 
+        /// <summary>
+        /// Registers a new state for 
+        /// </summary>
+        /// <param name="name">The name of the new state</param>
+        /// <param name="defaultState">True to make this the default state</param>
         public VisualState RegisterState(string name, bool defaultState = false)
         {
             var state = MakeNewState(name);
@@ -180,11 +221,20 @@ namespace MuggPet.Activity.VisualState
             return state;
         }
 
+        /// <summary>
+        /// Registers a combined state , thus a state that has multiple states attached together with itself
+        /// </summary>
+        /// <param name="combinedName">The name for the combined state</param>
+        /// <param name="states">Names of registered state you wish to combine</param>
         public VisualState RegisterCombined(string combinedName, params string[] states)
         {
             return MakeNewState(combinedName, visualStates.Where(x => states.Contains(x.Name)));
         }
 
+        /// <summary>
+        /// Moves the the specified state
+        /// </summary>
+        /// <param name="stateName">The name of the destination state</param>
         public bool GotoState(string stateName)
         {
             var state = GetStateWithName(stateName);
@@ -197,12 +247,18 @@ namespace MuggPet.Activity.VisualState
             return false;
         }
 
+        /// <summary>
+        /// Reverts to the default state
+        /// </summary>
         public void GotoDefaultState()
         {
             if (_defaultState != null && currentState != _defaultState)
                 CurrentState = _defaultState.Name;
         }
 
+        /// <summary>
+        /// Resets the state manager
+        /// </summary>
         public void Reset()
         {
             InternalRestoreState();
@@ -381,6 +437,9 @@ namespace MuggPet.Activity.VisualState
             }
         }
 
+        /// <summary>
+        /// Applies the state immediately
+        /// </summary>
         public void Apply()
         {
             Prepare();
@@ -411,12 +470,21 @@ namespace MuggPet.Activity.VisualState
             }
         }
 
+        /// <summary>
+        /// Sets how state activation logic is process
+        /// </summary>
+        /// <param name="activationMode">Indicates how to invoke state activation logic</param>
         public VisualState SetActivationMode(StateActivationMode activationMode)
         {
             ActivationMode = activationMode;
             return this;
         }
 
+        /// <summary>
+        /// Overrides the logic handler for state activation
+        /// </summary>
+        /// <param name="onActivate"></param>
+        /// <returns></returns>
         public VisualState OnActivate(Action<StateObjectDefinitionWrapper> onActivate)
         {
             StateObjectDefinitionWrapper wrapper = new StateObjectDefinitionWrapper(this);
@@ -446,6 +514,9 @@ namespace MuggPet.Activity.VisualState
         #endregion
     }
 
+    /// <summary>
+    /// Responsible for attaching object and views to the current state
+    /// </summary>
     public class StateObjectDefinitionWrapper
     {
         private VisualState visualState;
@@ -457,28 +528,49 @@ namespace MuggPet.Activity.VisualState
             visualState = state;
         }
 
+
+        /// <summary>
+        /// Attaches the object to the current state
+        /// </summary>
+        /// <param name="obj">The object to be attached</param>
         public StateMemberDefinitionWrapper<T> HasObject<T>(T obj)
         {
             SourceObject = obj;
             return new StateMemberDefinitionWrapper<T>(visualState, this);
         }
 
+        /// <summary>
+        /// Attaches a view to the current state
+        /// </summary>
+        /// <param name="view">The view to attach</param>
         public StateMemberDefinitionWrapper<T> HasView<T>(T view) where T : View
         {
             return HasObject(view);
         }
 
+        /// <summary>
+        /// Attaches a view with with given id to the state
+        /// </summary>
+        /// <param name="viewId">The id of the view to be attached</param>
         public StateMemberDefinitionWrapper<View> HasView(int viewId)
         {
             return HasObject(visualState.StateManager.RootView.FindViewById(viewId));
         }
 
+        /// <summary>
+        /// Attaches a view with with given id to the state
+        /// </summary>
+        /// <param name="viewId">The id of the view to be attached</param>
         public StateMemberDefinitionWrapper<T> HasView<T>(int viewId) where T : View
         {
             return HasObject(visualState.StateManager.RootView.FindViewById<T>(viewId));
         }
+
     }
 
+    /// <summary>
+    /// Defines properties for object or views within the current state
+    /// </summary>
     public class StateMemberDefinitionWrapper<T>
     {
         private VisualState state;
@@ -511,16 +603,31 @@ namespace MuggPet.Activity.VisualState
             return null;
         }
 
+        /// <summary>
+        /// Associates a property of the attached object
+        /// </summary>
+        /// <param name="expression">An expression for selecting the property to attach. Only properties with get and set accessors are supported</param>
         public MemberSetDefinitionWrapper<T, TResult> WithProperty<TResult>(Expression<Func<T, TResult>> expression)
         {
             return new MemberSetDefinitionWrapper<T, TResult>(state, this, GetExpressionMember(expression));
         }
 
-        public StateMemberDefinitionWrapper<T> SetProperty<TResult>(Expression<Func<T, TResult>> expression , TResult value)
+        /// <summary>
+        /// Assigns a value to the property in the expression given.
+        /// This method implicitly associates the specified property to attached object and sets the value for the property when activated
+        /// </summary>
+        /// <param name="expression">An expression for selecting the property to attach. Only properties with get and set accessors are supported</param>
+        /// <param name="value">The value to assign the property when state is activated</param>
+        /// <param name="unique">Determines whether to ensure the property is set once</param>
+        public StateMemberDefinitionWrapper<T> SetProperty<TResult>(Expression<Func<T, TResult>> expression , TResult value , bool unique)
         {
             return WithProperty(expression).Set(value);
         }
 
+        /// <summary>
+        /// Applies all associated properties to objects of the same type
+        /// </summary>
+        /// <param name="objects">A collection of objects to apply properties associated earlier to</param>
         public StateMemberDefinitionWrapper<T> AppliesTo(params T[] objects)
         {
             var myDescriptions = state.StateDescriptions.Where(x => x.Source.Equals(objectLayout.SourceObject)).ToArray();
@@ -542,6 +649,11 @@ namespace MuggPet.Activity.VisualState
             return this;
         }
 
+        /// <summary>
+        /// Exposes state definition to callbacks
+        /// </summary>
+        /// <param name="onSetValue">Invoked by the state manager to either apply or revert state to an object or view property. When this method is invoked with a null the value argument (T, object value), it indicates the application of a new state else revert the state to the given value.</param>
+        /// <param name="onGetValue">Invoked to get the the current state of the object or view property</param>
         public StateMemberDefinitionWrapper<T> WithComplex(Action<T, object> onSetValue, Func<T, object> onGetValue)
         {
             state.StateDescriptions.Add(new VisualStateDescription()
@@ -556,6 +668,9 @@ namespace MuggPet.Activity.VisualState
 
     }
 
+    /// <summary>
+    /// Implements means of setting or updating values for properties associated to attached object in the current state
+    /// </summary>
     public class MemberSetDefinitionWrapper<TSource, TProperty>
     {
         private StateMemberDefinitionWrapper<TSource> memberDefinition;
@@ -569,8 +684,21 @@ namespace MuggPet.Activity.VisualState
             this.memberInfo = memberInfo;
         }
 
-        public StateMemberDefinitionWrapper<TSource> Set(TProperty value)
+        /// <summary>
+        /// Sets the property to the given value
+        /// </summary>
+        /// <param name="value">The value for the property</param>
+        /// /// <param name="unique">Determines whether to ensure the property is set once</param>
+        /// <returns></returns>
+        public StateMemberDefinitionWrapper<TSource> Set(TProperty value , bool unique = false)
         {
+            if (unique)
+            {
+                var existing = state.StateDescriptions.FirstOrDefault(x => x.Member == memberInfo && memberDefinition.ObjectDefinition.SourceObject == x.Source);
+                if (existing != null)
+                    state.StateDescriptions.Remove(existing);
+            }
+
             state.StateDescriptions.Add(new VisualStateDescription()
             {
                 Member = memberInfo,

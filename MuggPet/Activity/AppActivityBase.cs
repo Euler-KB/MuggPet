@@ -277,16 +277,16 @@ namespace MuggPet.Activity
         /// </summary>
         /// <param name="resLayoutID">The layout resource id for the activity. If set to -1, no content is loaded.</param>
         /// <param name="exitDelay">The delay prior exiting activity</param>
-        /// <param name="closeRestartDelay">The delay between double back bresses that will cancel activity exiting state</param>
+        /// <param name="closeInterval">The delay between double back presses that will prevent activity from exiting</param>
         /// <param name="menuResourceID">The menu resource id for the activity</param>
         /// <param name="closeMethod">Determines how back bressed event is handled</param>
-        public AppActivityBase(int resLayoutID, int exitDelay = 320, int closeRestartDelay = 2100, int menuResourceID = -1, CloseMethod closeMethod = CloseMethod.Delayed)
+        public AppActivityBase(int resLayoutID, int exitDelay = 320, int closeInterval = 2100, int menuResourceID = -1, CloseMethod closeMethod = CloseMethod.System)
         {
             this.layoutID = resLayoutID;
             this.exitDelay = exitDelay;
             this.menuResID = menuResourceID;
 
-            closeResetTimer = new System.Timers.Timer(closeRestartDelay) { AutoReset = true };
+            closeResetTimer = new System.Timers.Timer(closeInterval) { AutoReset = true };
             this.closeMethod = closeMethod;
             closeResetTimer.Elapsed += (s, e) =>
             {
@@ -312,6 +312,10 @@ namespace MuggPet.Activity
         }
 
         IBindingHandler bindingHandler;
+
+        /// <summary>
+        /// Gets the binding handler instance for this activity
+        /// </summary>
         public IBindingHandler BindingHandler
         {
             get
@@ -321,6 +325,10 @@ namespace MuggPet.Activity
         }
 
         VisualStateManager stateManager;
+
+        /// <summary>
+        /// Gets the visual state manager for this activity
+        /// </summary>
         public VisualStateManager VisualState
         {
             get

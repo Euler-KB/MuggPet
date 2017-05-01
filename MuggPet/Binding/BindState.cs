@@ -11,6 +11,7 @@ using Android.Views;
 using Android.Widget;
 using System.Reflection;
 using MuggPet.Commands;
+using MuggPet.Utils;
 
 namespace MuggPet.Binding
 {
@@ -113,16 +114,6 @@ namespace MuggPet.Binding
             }
         }
 
-        public static Type GetMemberType(MemberInfo member)
-        {
-            if (member.MemberType == MemberTypes.Field)
-                return ((FieldInfo)member).FieldType;
-            else if (member.MemberType == MemberTypes.Property)
-                return ((PropertyInfo)member).PropertyType;
-
-            return null;
-        }
-
         public static void SetMemberValue(MemberInfo member, object target, object value)
         {
             if (member.MemberType == MemberTypes.Field)
@@ -135,22 +126,6 @@ namespace MuggPet.Binding
                 var property = (PropertyInfo)member;
                 property.SetValue(target, value);
             }
-        }
-
-        public static object GetMemberValue(MemberInfo member, object target)
-        {
-            if (member.MemberType == MemberTypes.Field)
-            {
-                var field = (FieldInfo)member;
-                return field.GetValue(target);
-            }
-            else if (member.MemberType == MemberTypes.Property)
-            {
-                var property = (PropertyInfo)member;
-                return property.GetValue(target);
-            }
-
-            return null;
         }
 
         protected virtual void InternalBindCommand()
@@ -173,7 +148,7 @@ namespace MuggPet.Binding
         protected virtual void InternalBindViewContent()
         {
             var bindAttrib = ((IBindingAttribute)Attribute);
-            SetMemberValue(TargetMember, Target, bindAttrib.OnBindViewValueToProperty((View)Source, GetMemberType(TargetMember)));
+            SetMemberValue(TargetMember, Target, bindAttrib.OnBindViewValueToProperty((View)Source, TargetMember.GetReturnType()));
         }
 
         protected virtual void InternalBindObjectToView()
@@ -197,7 +172,7 @@ namespace MuggPet.Binding
         {
             var resourceBind = ((IResourceAttribute)Attribute);
             Context context = (Context)Source;
-            SetMemberValue(TargetMember, Target, resourceBind.LoadResource(context, GetMemberType(TargetMember)));
+            SetMemberValue(TargetMember, Target, resourceBind.LoadResource(context, TargetMember.GetReturnType()));
         }
     }
 }

@@ -36,23 +36,22 @@ namespace MuggPet.Utils.Cursor
             if (cursor == null)
                 return;
 
-            if (cursor.MoveToFirst())
+            try
             {
-                do
+                if (cursor.MoveToFirst())
                 {
-                    try
+                    do
                     {
                         iterate.Invoke(cursor);
-                    }
-                    catch
-                    {
-                        // do nothing
-                    }
 
-                } while (cursor.MoveToNext());
+                    } while (cursor.MoveToNext());
+                }
+            }
+            finally
+            {
+                cursor.Close();
             }
 
-            cursor.Close();
         }
     }
 }

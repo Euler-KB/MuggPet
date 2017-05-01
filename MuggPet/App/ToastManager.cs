@@ -80,7 +80,7 @@ namespace MuggPet.App
         }
 
         /// <summary>
-        /// Resets the keys and all active toasts
+        /// Cancels all active and attached toasts
         /// </summary>
         public void Reset()
         {

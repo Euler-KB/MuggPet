@@ -9,6 +9,7 @@ using Android.OS;
 using Android.Runtime;
 using Android.Views;
 using Android.Widget;
+using System.Reflection;
 
 namespace MuggPet.Utils
 {
@@ -39,6 +40,41 @@ namespace MuggPet.Utils
         {
             return type.GetInterface(typeof(T).Name) != null || type == typeof(T);
         }
+
+        /// <summary>
+        /// Returns the return type for the specified member info
+        /// </summary>
+        /// <param name="memberInfo">The member info in context</param>
+        public static Type GetReturnType(this MemberInfo memberInfo)
+        {
+            if (memberInfo is FieldInfo)
+                return ((FieldInfo)memberInfo).FieldType;
+
+            if (memberInfo is PropertyInfo)
+                return ((PropertyInfo)memberInfo).PropertyType;
+
+            if (memberInfo is MethodInfo)
+                return ((MethodInfo)memberInfo).ReturnType;
+
+            return null;
+        }
+
+        /// <summary>
+        /// Returns the return type for the specified member info
+        /// </summary>
+        /// <param name="memberInfo">The member info in context</param>
+        /// /// <param name="memberInfo">A reference to the object containing the member</param>
+        public static object GetMemberValue(this MemberInfo memberInfo , object source)
+        {
+            if (memberInfo is FieldInfo)
+                return ((FieldInfo)memberInfo).GetValue(source);
+
+            if (memberInfo is PropertyInfo)
+                return ((PropertyInfo)memberInfo).GetValue(source);
+
+            return null;
+        }
+
 
         /// <summary>
         /// Makes a generic type for the type argument

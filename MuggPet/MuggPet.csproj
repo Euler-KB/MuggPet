@@ -66,6 +66,7 @@
     <Compile Include="App\IDispatchLifecycleEvents.cs" />
     <Compile Include="Activity\IStartActivityAsync.cs" />
     <Compile Include="Binding\BindingFrame.cs" />
+    <Compile Include="Tasks\Native\ContactPickTask.cs" />
     <Compile Include="Utils\Processes.cs" />
     <Compile Include="Animation\BetwixtInterpolator.cs" />
     <Compile Include="Animation\Betwixt\Annotations.cs" />
@@ -89,7 +90,6 @@
     <Compile Include="Binding\BindState.cs" />
     <Compile Include="Binding\IBindingHandler.cs" />
     <Compile Include="Binding\ISupportBinding.cs" />
-    <Compile Include="Commands\CommandBinding.cs" />
     <Compile Include="Commands\ICommand.cs" />
     <Compile Include="Commands\RelayCommand.cs" />
     <Compile Include="Dialogs\CommonDialogs.cs" />

@@ -58,6 +58,9 @@ namespace MuggPet.App.Settings
     /// <typeparam name="TSettings">The setting class</typeparam>
     public class SettingsManager<TSettings> where TSettings : INotifyPropertyChanged
     {
+        //  The preference manager in use
+        private ISharedPreferences preferenceManager;
+
         //  Data protector instance
         DataProtector _dataProtector;
 
@@ -90,10 +93,14 @@ namespace MuggPet.App.Settings
         /// <param name="secretkey">The secret key used in protecting values</param>
         /// <param name="salt">The salt to use in conjunction with the secret key</param>
         /// <param name="handler">An optional handler for managing data protection. If null, a default handler will be used</param>
-        public SettingsManager(byte[] secretkey, byte[] salt, IDataProtectorHandler handler = null) : this()
+        /// <param name="preferenceManager">The preference manager to use for persisting settings</param>
+        public SettingsManager(ISharedPreferences preferenceManager, byte[] secretkey, byte[] salt, IDataProtectorHandler handler = null) : this()
         {
             //  initialize data protector
             _dataProtector = new DataProtector(secretkey, salt, true, handler);
+
+            //  set the preference manager in use
+            this.preferenceManager = preferenceManager;
         }
 
         public SettingsManager()
@@ -238,10 +245,9 @@ namespace MuggPet.App.Settings
 
         void InternalLoadSettings()
         {
-            var prefMgr = PreferenceManager.GetDefaultSharedPreferences(Application.Context);
             foreach (var prop in typeof(TSettings).GetProperties(BindingFlags.Instance | BindingFlags.Public))
             {
-                InternalUpdateProperty(prefMgr, prop, instance);
+                InternalUpdateProperty(preferenceManager, prop, instance);
             }
         }
 

@@ -288,7 +288,8 @@ namespace MuggPet.Security
         /// </summary>
         /// <param name="securityKey">The security key for encrypting the data</param>
         /// <param name="salt">The salt used in conjuction with the security key</param>
-        public static bool Initialize(byte[] securityKey, byte[] salt, ICredentialStoreHandler storeHandler = null)
+        /// <param name="storeHandler">The handler for handling protection requests. If null a default handler will be used.</param>
+        public static bool Initialize(byte[] securityKey, byte[] salt, ICredentialStoreHandler storeHandler)
         {
             if (!_isInitialized)
             {
@@ -310,5 +311,35 @@ namespace MuggPet.Security
 
             return true;
         }
+
+        /// <summary>
+        /// Initializes the store with required keys
+        /// </summary>
+        /// <param name="securityKey">The security key for encrypting the data</param>
+        /// <param name="salt">The salt used in conjuction with the security key</param>
+        /// <param name="storagePath">The path for credentials storage</param>
+        public static bool Initialize(byte[] securityKey, byte[] salt, string storagePath)
+        {
+            if (!_isInitialized)
+            {
+                try
+                {
+                    //  initialize a new data protector
+                    _dataProtector = new DataProtector(securityKey, salt, true);
+
+                    //  assign the current store handler
+                    _storeHandler = new Handlers.DefaultStoreHandler(storagePath);
+                }
+                catch
+                {
+                    return false;
+                }
+
+                _isInitialized = true;
+            }
+
+            return true;
+        }
+
     }
 }

@@ -300,9 +300,7 @@ namespace MuggPet.Utils.Adapter
             {
                 if (enableFiltering != value)
                 {
-
                     enableFiltering = value;
-
                     if (enableFiltering)
                     {
                         InternalFilter();
@@ -396,21 +394,22 @@ namespace MuggPet.Utils.Adapter
             NotifyDataSetChanged();
         }
 
-        protected void ResetItems()
+        /// <summary>
+        /// Resets the internal collection to match the given data source
+        /// </summary>
+        protected virtual void ResetItems()
         {
             items = (source == null) ? new List<T>() : new List<T>(source);
         }
 
-        protected bool InternalFilter(T obj)
+        /// <summary>
+        /// Filters an item, passing if no filter handler is registered
+        /// </summary>
+        /// <param name="obj">The object to be filtered</param>
+        /// <returns>True if passed filter else otherwise</returns>
+        protected virtual bool InternalFilter(T obj)
         {
             return _filter == null ? true : _filter(obj);
-        }
-
-        public GenericAdapter(Context context, IEnumerable<T> items, Func<int, View, ViewGroup, View> getViewFunc)
-        {
-            this.onGetView = getViewFunc;
-            this.context = context;
-            Source = items;
         }
 
         private void OnSourceCollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
@@ -422,7 +421,10 @@ namespace MuggPet.Utils.Adapter
                         foreach (T item in e.NewItems)
                         {
                             if (!EnableFiltering || (EnableFiltering && InternalFilter(item)))
+                            {
                                 items.Add(item);
+                                OnItemAdded(item);
+                            }
                         }
 
                         InternalSort();
@@ -444,12 +446,7 @@ namespace MuggPet.Utils.Adapter
                         foreach (var item in e.OldItems)
                         {
                             items.Remove((T)item);
-
-                            //  reset binding for removed item
-                            BindingHandler.Destroy(item);
-
-                            //  
-                            _objectBindMap.Remove(item);
+                            OnItemRemoved((T)item);
                         }
                     }
                     break;
@@ -457,11 +454,8 @@ namespace MuggPet.Utils.Adapter
                     {
                         for (int i = 0; i < e.OldItems.Count; i++)
                         {
-                            //  reset binding for replaced item
-                            BindingHandler.Destroy(items[i]);
-
                             //
-                            _objectBindMap.Remove(items[i]);
+                            OnItemRemoved(items[i]);
 
                             T item = (T)e.NewItems[i];
                             if (EnableFiltering && !InternalFilter(item))
@@ -474,16 +468,10 @@ namespace MuggPet.Utils.Adapter
                     }
                     break;
                 case NotifyCollectionChangedAction.Reset:
-
-                    //
-                    items.Clear();
-
-                    //  clear object bindings
-                    _objectBindMap.Clear();
-
-                    //  clear all binding operations
-                    BindingHandler.Reset();
-
+                    {
+                        OnItemsReset();
+                        items.Clear();
+                    }
                     break;
             }
 
@@ -491,36 +479,95 @@ namespace MuggPet.Utils.Adapter
             NotifyDataSetChanged();
         }
 
+        /// <summary>
+        /// Initializes a new adapter with your items source and a custom callback to load the view for an item.
+        /// Views loaded are automatically binded to corresponding items
+        /// </summary>
+        /// <param name="context">The context object. Used in inflating views from resource</param>
+        /// <param name="items">A collection of items within the adapter. If your items implement INotifyPropertyChanged, changes on the items are automatically synchronized withiin the adapter</param>
+        /// <param name="getViewFunc">A callback to fetch the view for each item. Items are then automatically binded to loaded views</param>
+        public GenericAdapter(Context context, IEnumerable<T> items, Func<int, View, ViewGroup, View> getViewFunc)
+        {
+            this.onGetView = getViewFunc;
+            this.context = context;
+            Source = items;
+        }
+
+        /// <summary>
+        /// Initializes a new adapter with a custom callback to load the view for an item. 
+        /// The adapter initially contains no items. You can use the Source property to assign one
+        /// </summary>
+        /// <param name="context">The context object. Used in inflating views from resource</param>
+        /// <param name="getViewFunc">A callback to fetch the view for each item. Items are then automatically binded to loaded views</param>
         public GenericAdapter(Context context, Func<int, View, ViewGroup, View> getViewFunc) : this(context, null, getViewFunc)
         {
 
         }
 
+        /// <summary>
+        /// Initializes a new empty instance with the specified item layout and a custom callback for binding items to views. 
+        /// The adapter initially contains no items. You can use the Source property to assign one
+        /// </summary>
+        /// <param name="context">The context object. Used in inflating views from resource</param>
+        /// <param name="itemLayoutResID">The layout for each item within the view</param>
+        /// <param name="onBind">A callback for specifying binding each item to items view. If null, will automatically bind the item to the view else you'll have to implement you own way of mapping items to views.</param>
         public GenericAdapter(Context context, int itemLayoutResID, Action<View, T> onBind = null) : this(context, itemLayoutResID, null, onBind)
         {
 
         }
 
+        /// <summary>
+        /// Initializes a new empty instance with custom callback for determining each item's layout and a custom callback for binding items to views. 
+        /// </summary>
+        /// <param name="context">The context object. Used in inflating views from resource</param>
+        /// <param name="itemLayoutResID">The layout for each item within the view</param>
+        /// /// <param name="items">A collection of items within the adapter. If your items implement INotifyPropertyChanged, changes on the items are automatically synchronized withiin the adapter</param>
+        /// <param name="onBind">A callback for specifying binding each item to items view. If null, will automatically bind the item to the view else you'll have to implement you own way of mapping items to views.</param>
         public GenericAdapter(Context context, int itemLayoutResID, IEnumerable<T> items, Action<View, T> onBind = null) : this(context, (x) => itemLayoutResID, items, onBind)
         {
 
         }
 
+
+        /// <summary>
+        /// Initializes a new empty instance with custom callback for determining each item's layout and a custom callback for binding items to views. 
+        /// The adapter initially contains no items. You can use the Source property to assign one
+        /// </summary>
+        /// <param name="context">The context object. Used in inflating views from resource</param>
+        /// <param name="onGetItemLayout">A custom callback for determining the layout for an item</param>
+        /// <param name="onBind">A callback for specifying binding each item to items view. If null, will automatically bind the item to the view else you'll have to implement you own way of mapping items to views.</param>
         public GenericAdapter(Context context, Func<T, int> onGetItemLayout, Action<View, T> onBind = null) : this(context, onGetItemLayout, null, onBind)
         {
 
         }
 
+        /// <summary>
+        /// Initializes a new adapter with specified items
+        /// </summary>
+        /// <param name="context">The context object for inflating views</param>
+        /// <param name="items">A collection of items within the adapter. If your items implement INotifyPropertyChanged, changes on the items are automatically synchronized withiin the adapter</param>
         public static GenericAdapter<string> Create(Context context, IEnumerable<string> items)
         {
             return new GenericAdapter<string>(context, Android.Resource.Layout.SimpleListItem1, items, (v, str) => v.FindViewById<TextView>(Android.Resource.Id.Text1).Text = str);
         }
 
+        /// <summary>
+        /// Initializes a new adapter with items(string-array) from resouce
+        /// </summary>
+        /// <param name="context">The context object for fetching resouces and inflating views</param>
+        /// <param name="itemsResId">The id of the string array resource</param>
         public static GenericAdapter<string> Create(Context context, int itemsResId)
         {
             return Create(context, context.Resources.GetStringArray(itemsResId));
         }
 
+        /// <summary>
+        /// Initializes a new instance with custom callback for determining each item's layout, your items data source and a custom callback for binding items to views. 
+        /// </summary>
+        /// <param name="context">The context object. Used in inflating views from resource</param>
+        /// <param name="onGetItemLayout">A custom callback for determining the layout for an item</param>
+        /// <param name="items">A collection of items within the adapter. If your items implement INotifyPropertyChanged, changes on the items are automatically synchronized withiin the adapter</param>
+        /// <param name="onBind">A callback for specifying binding each item to items view. If null, will automatically bind the item to the view else you'll have to implement you own way of mapping items to views.</param>
         public GenericAdapter(Context context, Func<T, int> onGetItemLayout, IEnumerable<T> items, Action<View, T> onBind = null)
         {
             this.context = context;
@@ -538,20 +585,65 @@ namespace MuggPet.Utils.Adapter
                 }
                 else
                 {
-
-                    //  Bind object to view
-                    BindingHandler.Destroy(item);
-
-                    BindingExtensions.BindObjectToView(this, item, cView);
-
-                    //  Update or add reference to view binding
-                    _objectBindMap[item] = cView;
-
+                    OnBind(item, cView);
                 }
 
                 return cView;
             };
         }
+
+        /// <summary>
+        /// Notifies the adapter of an explicit binding between the specified item and the view. If there's an existing binding, it is updated
+        /// </summary>
+        /// <param name="item">The item within with adapter that is beign bound</param>
+        /// <param name="view">The target view</param>
+        public void OnBind(T item, View view)
+        {
+            //  Destroy existing bindings for this item
+            BindingHandler.Destroy(item);
+
+            //  Bind object to view
+            BindingExtensions.BindObjectToView(this, item, view);
+
+            //  Update or add reference to view binding
+            _objectBindMap[item] = view;
+        }
+
+        protected virtual void OnItemAdded(T item)
+        {
+            var notif = item as INotifyPropertyChanged;
+            if (notif != null)
+                notif.PropertyChanged += OnItemPropertyChanged;
+        }
+
+        protected virtual void OnItemRemoved(T item)
+        {
+            BindingHandler.Destroy(item);
+            _objectBindMap.Remove(item);
+
+            //
+            var notif = item as INotifyPropertyChanged;
+            if (notif != null)
+                notif.PropertyChanged -= OnItemPropertyChanged;
+        }
+
+
+        protected virtual void OnItemsReset()
+        {
+            BindingHandler.Reset();
+            _objectBindMap.Clear();
+
+            //
+            if (source == null)
+                return;
+
+            foreach (var item in source)
+            {
+                if (item is INotifyPropertyChanged)
+                    ((INotifyPropertyChanged)item).PropertyChanged -= OnItemPropertyChanged;
+            }
+        }
+
 
         /// <summary>
         /// Sets or gets the underlying data source for the adapter
@@ -564,30 +656,16 @@ namespace MuggPet.Utils.Adapter
             {
                 if (source != value)
                 {
-                    //  destroy previous routes
-
                     if (source is INotifyCollectionChanged)
                         ((INotifyCollectionChanged)source).CollectionChanged -= OnSourceCollectionChanged;
 
-                    if (source != null)
-                    {
-                        //  destroy routed changes listener
-                        foreach (var item in source)
-                        {
-                            if (item is INotifyPropertyChanged)
-                                ((INotifyPropertyChanged)item).PropertyChanged -= OnItemPropertyChanged;
-                        }
-                    }
-
-                    //  reset all binding operations
-                    BindingHandler.Reset();
-
-                    //
-                    _objectBindMap.Clear();
+                    //  force reset
+                    OnItemsReset();
 
                     //  set new source
                     source = value;
 
+                    //
                     if (source != null)
                     {
                         if (source is INotifyCollectionChanged)
@@ -595,10 +673,7 @@ namespace MuggPet.Utils.Adapter
 
                         //  listen for changes in item properties
                         foreach (var item in source)
-                        {
-                            if (item is INotifyPropertyChanged)
-                                ((INotifyPropertyChanged)item).PropertyChanged += OnItemPropertyChanged;
-                        }
+                            OnItemAdded(item);
                     }
 
                     //
@@ -607,6 +682,9 @@ namespace MuggPet.Utils.Adapter
             }
         }
 
+        /// <summary>
+        /// Invoked when a property of an item within the collection has changed
+        /// </summary>
         protected virtual void OnItemPropertyChanged(object sender, PropertyChangedEventArgs e)
         {
             var type = sender.GetType();
@@ -641,6 +719,9 @@ namespace MuggPet.Utils.Adapter
 
         public override View GetView(int position, View convertView, ViewGroup parent) => onGetView(position, convertView, parent);
 
+        /// <summary>
+        /// Checks whether sorting is enabled on the adapter then sorts the internal collection
+        /// </summary>
         protected virtual void InternalSort()
         {
             if (EnableSorting)
@@ -649,6 +730,9 @@ namespace MuggPet.Utils.Adapter
             }
         }
 
+        /// <summary>
+        /// Checks whether filtering is enabled on the adapter then filters the internal collection
+        /// </summary>
         protected virtual void InternalFilter()
         {
             if (EnableFiltering)

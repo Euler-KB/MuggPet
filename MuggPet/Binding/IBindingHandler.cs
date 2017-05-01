@@ -23,7 +23,7 @@ namespace MuggPet.Binding
         /// Gets the state of an objet in binding
         /// </summary>
         /// <param name="obj">The object to determine state</param>
-        IEnumerable<BindState> GetState(object obj , BindingMode mode );
+        IEnumerable<BindState> GetState(object source, BindingMode mode);
 
         /// <summary>
         /// Handles the binding of an object's member to the target view
@@ -32,14 +32,14 @@ namespace MuggPet.Binding
         /// <param name="view">The destination view</param>
         /// <param name="member">The member of the object to bind</param>
         /// <param name="update">When set to true, will forcibly undergo or update binding if has already taken place</param>
-        bool BindObjectToView(object obj, MemberInfo member, View view, bool update);
+        bool BindObjectToView(object source, MemberInfo member, View view, bool update);
 
         /// <summary>
         /// Bind a view to an object
         /// </summary>
         /// <param name="view">The view to bind</param>
         /// <param name="update">When set to true, will forcibly undergo or update binding if has already taken place</param>
-        bool BindViewContent(View view , object source, MemberInfo member, bool update);
+        bool BindViewContent(View view, object source, MemberInfo member, bool update);
 
         /// <summary>
         /// Attaches a view to a property
@@ -53,20 +53,34 @@ namespace MuggPet.Binding
         /// <summary>
         /// Binds resource to object member 
         /// </summary>
-        /// /// <param name="update">If true, will update view attachment else otherwise</param>
-        bool BindResource(Context context , object target, MemberInfo member, bool update);
-
+        /// /// <param name="update">If true, will update resource binding</param>
+        bool BindResource(Context context, object target, MemberInfo member, bool update);
 
         /// <summary>
-        /// Binds a command to a view
+        /// Binds a command to a view. The member is reflected upon for command bindings interfaces
         /// </summary>
-        bool BindCommand(object source, MemberInfo member, View destinationView , bool update);
-        
+        bool BindCommand(object source, MemberInfo member, View containerView, bool update);
+
         /// <summary>
-        /// Destroy all bindings that applies the specified target object
+        /// Unbinds command 
         /// </summary>
-        /// <param name="target">The object in context</param>
-        bool Destroy(object target);
+        bool UnBindCommand(object source, MemberInfo member, View containerView);
+
+        /// <summary>
+        /// Binds a command directly to the specified view. No reflection is involved
+        /// </summary>
+        bool BindCommandDirect(object source, ICommand command, View targetView, bool update);
+
+        /// <summary>
+        /// Unbinds a command that was binded directly to the specified view
+        /// </summary>
+        bool UnBindCommandDirect(object source, ICommand command, View targetView);
+
+        /// <summary>
+        /// Destroy all bindings that applies the specified source object
+        /// </summary>
+        /// <param name="source">The object in context</param>
+        bool Destroy(object source);
 
         /// <summary>
         /// Resets all binding operations

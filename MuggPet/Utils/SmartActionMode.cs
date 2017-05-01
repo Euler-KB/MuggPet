@@ -20,8 +20,26 @@ namespace MuggPet.Utils
     /// </summary>
     public class SmartActionMode : Java.Lang.Object, ActionMode.ICallback
     {
-        private bool isActive;
+        private bool _isActive;
+
+        /// <summary>
+        /// Determines whether action mode is active
+        /// </summary>
+        public bool IsActive
+        {
+            get { return _isActive; }
+            set
+            {
+                if (_isActive != value)
+                {
+                    _isActive = value;
+                    Changed?.Invoke(this, EventArgs.Empty);
+                }
+            }
+        }
+
         private int menuResID = -1;
+
         private AppActivity hostActivity;
 
         /// <summary>
@@ -29,12 +47,19 @@ namespace MuggPet.Utils
         /// </summary>
         public AppActivity Host => hostActivity;
 
+        /// The active action mode reference
         private ActionMode actionMode;
+
 
         /// <summary>
         /// Invoked when menu item is selected
         /// </summary>
         public event EventHandler<IMenuItem> MenuItemSelected;
+
+        /// <summary>
+        /// Invoked when action mode state changes
+        /// </summary>
+        public event EventHandler Changed;
 
         /// <summary>
         /// Instantiates a new smart action with a host activity and a menu
@@ -56,10 +81,6 @@ namespace MuggPet.Utils
             this.hostActivity = host;
         }
 
-        /// <summary>
-        /// Determines whether action mode is active
-        /// </summary>
-        public bool IsActive => isActive;
 
         /// <summary>
         /// Starts to show the action mode if only not already shown
@@ -67,7 +88,7 @@ namespace MuggPet.Utils
         /// <returns>True if shown successfully else otherwise</returns>
         public bool Start()
         {
-            if (!isActive)
+            if (!IsActive)
             {
                 actionMode = hostActivity.StartSupportActionMode(this);
                 return true;
@@ -82,7 +103,7 @@ namespace MuggPet.Utils
         /// <returns>True if shown successfully else otherwise</returns>
         public bool Cancel()
         {
-            if (isActive && actionMode != null)
+            if (IsActive && actionMode != null)
             {
                 actionMode.Finish();
                 return true;
@@ -103,18 +124,18 @@ namespace MuggPet.Utils
 
         public bool OnCreateActionMode(ActionMode mode, IMenu menu)
         {
-            if(menuResID != -1)
+            if (menuResID != -1)
             {
                 hostActivity.MenuInflater.Inflate(menuResID, menu);
             }
 
-            isActive = true;
+            IsActive = true;
             return true;
         }
 
         public void OnDestroyActionMode(ActionMode mode)
         {
-            isActive = false;
+            IsActive = false;
         }
 
         public bool OnPrepareActionMode(ActionMode mode, IMenu menu)
