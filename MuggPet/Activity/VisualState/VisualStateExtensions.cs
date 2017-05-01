@@ -14,7 +14,7 @@ using Android.Graphics;
 
 namespace MuggPet.Activity.VisualState
 {
-    public static class Extensions
+    public static class VisualStateExtensions
     {
         /// <summary>
         /// Transitions between two states
@@ -24,7 +24,7 @@ namespace MuggPet.Activity.VisualState
         /// <param name="restoreState">The restore visual state. It is activated after dispose has been called on the returned object. If null, the default state will be activated</param>
         public static IDisposable TransitionStates(this VisualStateManager stateManager, string newState, string restoreState = null)
         {
-            return BusyState.Begin(() => stateManager.GotoState(newState), () => 
+            return BusyState.Begin(() => stateManager.GotoState(newState), () =>
             {
                 if (restoreState != null)
                     stateManager.GotoState(restoreState);
@@ -44,10 +44,10 @@ namespace MuggPet.Activity.VisualState
 
         public static StateMemberDefinitionWrapper<TextView> SetTextColor(this StateMemberDefinitionWrapper<TextView> member, Color color)
         {
-            return member.WithComplex((view, value) =>
+            return member.WithCallback((view, args) =>
             {
                 //  state manager wants us to apply our state
-                if (value == null)
+                if (args.Mode == StateChangeMode.NewState)
                 {
                     view.SetTextColor(color);
                 }
@@ -55,7 +55,7 @@ namespace MuggPet.Activity.VisualState
                 //  state manager wants us to restore the default value
                 else
                 {
-                    view.SetTextColor((Color)value);
+                    view.SetTextColor((Color)args.OriginalState);
                 }
 
             }, (view) => new Color(view.CurrentTextColor));
@@ -63,10 +63,10 @@ namespace MuggPet.Activity.VisualState
 
         public static StateMemberDefinitionWrapper<EditText> SetTextColor(this StateMemberDefinitionWrapper<EditText> member, Color color)
         {
-            return member.WithComplex((view, value) =>
+            return member.WithCallback((view, args) =>
             {
                 //  state manager wants us to apply our state
-                if (value == null)
+                if (args.Mode == StateChangeMode.NewState)
                 {
                     view.SetTextColor(color);
                 }
@@ -74,7 +74,7 @@ namespace MuggPet.Activity.VisualState
                 //  state manager wants us to restore the default value
                 else
                 {
-                    view.SetTextColor((Color)value);
+                    view.SetTextColor((Color)args.OriginalState);
                 }
 
             }, (view) => new Color(view.CurrentTextColor));
@@ -82,10 +82,10 @@ namespace MuggPet.Activity.VisualState
 
         public static StateMemberDefinitionWrapper<T> Focus<T>(this StateMemberDefinitionWrapper<T> member) where T : View
         {
-            return member.WithComplex((view, value) =>
+            return member.WithCallback((view, args) =>
             {
                 //  state manager wants us to apply our state
-                if (value == null)
+                if (args.Mode == StateChangeMode.NewState)
                 {
                     view.RequestFocus();
                 }
@@ -93,7 +93,7 @@ namespace MuggPet.Activity.VisualState
                 //  state manager wants us to (revert state)
                 else
                 {
-                    if ((bool)value)
+                    if ((bool)args.OriginalState)
                         view.RequestFocus();
                     else
                         view.ClearFocus();
@@ -102,19 +102,60 @@ namespace MuggPet.Activity.VisualState
             }, (view) => view.IsFocused);
         }
 
-        public static StateMemberDefinitionWrapper<T> Enable<T>(this StateMemberDefinitionWrapper<T> member, bool enable) where T : View
+        public static StateMemberDefinitionWrapper<T> Enable<T>(this StateMemberDefinitionWrapper<T> member) where T : View
         {
-            return member.WithProperty(x => x.Enabled).Set(enable);
+            return member.WithProperty(x => x.Enabled).Set(true);
         }
 
-        public static StateMemberDefinitionWrapper<T> Hide<T>(this StateMemberDefinitionWrapper<T> member) where T : View
+        public static StateMemberDefinitionWrapper<T> Disable<T>(this StateMemberDefinitionWrapper<T> member) where T : View
         {
-            return member.WithProperty(x => x.Visibility).Set(ViewStates.Gone);
+            return member.WithProperty(x => x.Enabled).Set(false);
         }
 
-        public static StateMemberDefinitionWrapper<T> Show<T>(this StateMemberDefinitionWrapper<T> member) where T : View
+        public static StateMemberDefinitionWrapper<T> Hide<T>(this StateMemberDefinitionWrapper<T> member, bool animate) where T : View
         {
-            return member.WithProperty(x => x.Visibility).Set(ViewStates.Visible);
+            if (animate)
+            {
+                return member.WithCallback((view, args) =>
+                {
+                    //
+                    args.AnimationState.Cancel("hide");
+
+                    //  animate
+                    args.AnimationState.Create("hide", view.Animate().Alpha(args.Mode == StateChangeMode.NewState ? 0 : (float)args.OriginalState)
+                        .SetDuration(Animation.ViewAnimationConsts.FastDuration), () =>
+                        {
+                            view.Visibility = ViewStates.Gone;
+                            view.Alpha = Animation.ViewAnimationConsts.AlphaOpaque;
+                        });
+                },
+                (view) => view.Visibility);
+            }
+            else
+                return member.WithProperty(x => x.Visibility).Set(ViewStates.Gone);
+        }
+
+        public static StateMemberDefinitionWrapper<T> Show<T>(this StateMemberDefinitionWrapper<T> member, bool animate) where T : View
+        {
+            if (animate)
+            {
+                return member.WithCallback((view, args) =>
+                {
+                    //
+                    args.AnimationState.Cancel("show");
+
+                    //  animate
+                    args.AnimationState.Create("show", view.Animate().Alpha(args.Mode == StateChangeMode.NewState ? 1F : (float)args.OriginalState)
+                        .SetDuration(Animation.ViewAnimationConsts.FastDuration), () =>
+                        {
+                            view.Visibility = ViewStates.Visible;
+                        });
+                },
+                (view) => view.Visibility);
+
+            }
+            else
+                return member.WithProperty(x => x.Visibility).Set(ViewStates.Visible);
         }
 
         public static StateMemberDefinitionWrapper<T> SetAlpha<T>(this StateMemberDefinitionWrapper<T> member, float alpha) where T : View

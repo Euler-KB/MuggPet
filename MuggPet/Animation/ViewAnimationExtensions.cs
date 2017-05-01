@@ -20,7 +20,8 @@ namespace MuggPet.Animation
     public class AnimationListener : Java.Lang.Object, Animator.IAnimatorListener
     {
         private Action<Animator> onEnd, onCancel, onRepeat, onStart;
-        public AnimationListener(Action<Animator> endAction = null, Action<Animator> cancelAction = null, Action<Animator> repeatAction = null, Action<Animator> startAction = null)
+
+        public AnimationListener(Action<Animator> startAction = null, Action<Animator> endAction = null, Action<Animator> cancelAction = null, Action<Animator> repeatAction = null)
         {
             this.onEnd = endAction;
             this.onCancel = cancelAction;
@@ -69,6 +70,36 @@ namespace MuggPet.Animation
         BounceInwards
     }
 
+    public static class ViewAnimationConsts
+    {
+        //  Very quick animation duration
+        public const long SuperFastDuration = 100;
+
+        //  Fast animation duration
+        public const long FastDuration = 400;
+
+        //  Slow animation duration
+        public const long SlowDuration = 600;
+
+        //  Value for opaque alpa
+        public const float AlphaOpaque = 1;
+
+        //  Value for transparent alhpa
+        public const float AlphaTransparent = 0;
+
+        //  Indicates no delay
+        public const int NoDelay = 0;
+
+        //  Bounce inward default initial scale value
+        public const float BounceInwardScale = 1.8F;
+
+        //  Bounce outward default target scale
+        public const float BounceOutwardScale = 1.8F;
+
+        //  Normal scale value 
+        public const float ScaleNormal = 1.0F;
+    }
+
     /// <summary>
     /// Provides various extensions for view animations
     /// </summary>
@@ -84,7 +115,7 @@ namespace MuggPet.Animation
         /// <param name="from">Indicates the starting fade value. If null, the current fade of the view is used</param>
         /// <param name="easeFunc">The ease function for the fade animation</param>
         /// <returns>Returns the orginal view. For fluid syntax usage.</returns>
-        public static View AnimateFadeAlphaTo(this View view, float target = 1, long duration = 400, long delay = 0, float? from = null, EaseFunc easeFunc = null)
+        public static View AnimateFadeAlphaTo(this View view, float target = ViewAnimationConsts.AlphaOpaque, long duration = ViewAnimationConsts.FastDuration, long delay = ViewAnimationConsts.NoDelay, float? from = null, EaseFunc easeFunc = null)
         {
             var animator = view.Animate();
             animator.SetDuration(duration);
@@ -106,33 +137,33 @@ namespace MuggPet.Animation
         /// <param name="duration">The duration of the scale effect</param>
         /// <param name="delay">The delay</param>
         /// <returns>Returns the orginal view. For fluid syntax usage.</returns>
-        public static View AnimateScaleEffect(this View view, ScaleEffect scaleEffect, int duration = 450, int delay = 20)
+        public static View AnimateScaleEffect(this View view, ScaleEffect scaleEffect, long duration = ViewAnimationConsts.FastDuration, int delay = ViewAnimationConsts.NoDelay)
         {
             switch (scaleEffect)
             {
                 case ScaleEffect.BounceInwards:
-                    return view.AnimateScale(1.8F, 1F, 1.8F, 1F, duration, delay, easeFunc: Ease.Quint.Out);
+                    return view.AnimateScale(ViewAnimationConsts.BounceInwardScale, ViewAnimationConsts.ScaleNormal, ViewAnimationConsts.BounceInwardScale , ViewAnimationConsts.ScaleNormal, duration, delay, easeFunc: Ease.Quint.Out);
                 case ScaleEffect.BounceOutwards:
-                    return view.AnimateScale(1F, 1.8F, 1F, 1.8F, duration, delay, easeFunc: Ease.Quint.Out);
+                    return view.AnimateScale(ViewAnimationConsts.ScaleNormal, ViewAnimationConsts.BounceOutwardScale, ViewAnimationConsts.ScaleNormal, ViewAnimationConsts.BounceOutwardScale, duration, delay, easeFunc: Ease.Quint.Out);
             }
 
             return view;
         }
 
         /// <summary>
-        /// 
+        /// Animates a view with a scale effect
         /// </summary>
-        /// <param name="view"></param>
-        /// <param name="fromXScale"></param>
-        /// <param name="toXScale"></param>
-        /// <param name="fromYScale"></param>
-        /// <param name="toYScale"></param>
-        /// <param name="duration"></param>
-        /// <param name="delay"></param>
-        /// <param name="isReversed"></param>
-        /// <param name="easeFunc"></param>
+        /// <param name="view">The view to animate</param>
+        /// <param name="fromXScale">The initial value for X scale</param>
+        /// <param name="toXScale">The final value for X scale</param>
+        /// <param name="fromXScale">The initial value for Y scale</param>
+        /// <param name="toXScale">The final value for Y scale</param>
+        /// <param name="duration">The duration of the scale animation</param>
+        /// <param name="delay">The delay before animation</param>
+        /// <param name="isReversed">Plays animation in reverse if true</param>
+        /// <param name="easeFunc">The ease function for the animation. The default is a quintic ease function</param>
         /// <returns>Returns the orginal view. For fluid syntax usage.</returns>
-        public static View AnimateScale(this View view, float fromXScale, float toXScale, float fromYScale, float toYScale, long duration = 400, long delay = 0, bool isReversed = false, EaseFunc easeFunc = null)
+        public static View AnimateScale(this View view, float fromXScale, float toXScale, float fromYScale, float toYScale, long duration = ViewAnimationConsts.FastDuration, long delay = ViewAnimationConsts.NoDelay, bool isReversed = false, EaseFunc easeFunc = null)
         {
             var animator = view.Animate();
             if (isReversed)
@@ -161,15 +192,15 @@ namespace MuggPet.Animation
         /// Animates a view with specified sliding effect
         /// </summary>
         /// <param name="view">The view to animate</param>
-        /// <param name="offset">The</param>
-        /// <param name="direction"></param>
-        /// <param name="duration"></param>
-        /// <param name="delay"></param>
-        /// <param name="animateAlpha"></param>
-        /// <param name="isReversed"></param>
-        /// <param name="interpolator"></param>
+        /// <param name="offset">The offset to translate. If direction if top or down, a Y translation animation is applied else if direction is left or right, an X translation animation is applied instead</param>
+        /// <param name="direction">The direction of the entry</param>
+        /// <param name="duration">The duration of the animation</param>
+        /// <param name="delay">The delay before starting animation</param>
+        /// <param name="animateAlpha">True to animate alpha with translation</param>
+        /// <param name="isReversed">If true, plays animation in reverse else otherwise</param>
+        /// <param name="interpolator">The interpolator for the animation</param>
         /// <returns>Returns the orginal view. For fluid syntax usage.</returns>
-        public static View AnimateSlide(this View view, float offset, SlideInDirection direction = SlideInDirection.Top, long duration = 400, long delay = 0, bool animateAlpha = true, bool isReversed = false, BetwixtInterpolator interpolator = null)
+        public static View AnimateSlide(this View view, float offset, SlideInDirection direction = SlideInDirection.Top, long duration = ViewAnimationConsts.FastDuration, long delay = ViewAnimationConsts.NoDelay, bool animateAlpha = true, bool isReversed = false, BetwixtInterpolator interpolator = null)
         {
             ViewPropertyAnimator animator = view.Animate();
             switch (direction)

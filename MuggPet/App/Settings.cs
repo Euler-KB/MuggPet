@@ -94,21 +94,25 @@ namespace MuggPet.App.Settings
         /// <param name="salt">The salt to use in conjunction with the secret key</param>
         /// <param name="handler">An optional handler for managing data protection. If null, a default handler will be used</param>
         /// <param name="preferenceManager">The preference manager to use for persisting settings</param>
-        public SettingsManager(ISharedPreferences preferenceManager, byte[] secretkey, byte[] salt, IDataProtectorHandler handler = null) : this()
+        public SettingsManager(ISharedPreferences preferenceManager, byte[] secretkey, byte[] salt, IDataProtectorHandler handler = null) : this(preferenceManager)
         {
             //  initialize data protector
             _dataProtector = new DataProtector(secretkey, salt, true, handler);
-
-            //  set the preference manager in use
-            this.preferenceManager = preferenceManager;
         }
 
-        public SettingsManager()
+        /// <summary>
+        /// Initializes a new settings manager with no protection
+        /// </summary>
+        /// <param name="preferenceManager">The preference manager to use for persisting settings</param>
+        public SettingsManager(ISharedPreferences preferenceManager)
         {
             //  register for application life cycle events
             BaseApplication appInstance = BaseApplication.Current;
             if (appInstance == null)
                 throw new Exception("Cannot use Settings Manager. Please ensure your application class derives from MuggPt.App.BaseApplication!");
+
+            //  set the preference manager in use
+            this.preferenceManager = preferenceManager;
 
             //  automatically save changes when activity is not visible or stopped
             appInstance.ActivityStopped += (activity) =>

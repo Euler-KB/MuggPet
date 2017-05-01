@@ -83,20 +83,44 @@ namespace MuggPet.App
 
         private IDictionary<string, object> _properties;
 
+        /// <summary>
+        /// Dispatched when activity's OnStart() is called 
+        /// </summary>
         public event ActivityLifecycleDelegate ActivityStarted;
 
+        /// <summary>
+        /// Dispatched when activity's OnStop() is called 
+        /// </summary>
         public event ActivityLifecycleDelegate ActivityStopped;
 
+        /// <summary>
+        /// Dispatched when activity's OnDestroy() is called 
+        /// </summary>
         public event ActivityLifecycleDelegate ActivityDestroyed;
 
+        /// <summary>
+        /// Dispatched when activity's OnResume() is called 
+        /// </summary>
         public event ActivityLifecycleDelegate ActivityResumed;
 
+        /// <summary>
+        /// Dispatched when activity's OnPause() is called 
+        /// </summary>
         public event ActivityLifecycleDelegate ActivityPaused;
 
+        /// <summary>
+        /// Dispatched when activity's OnRestart() is called 
+        /// </summary>
         public event ActivityLifecycleDelegate ActivityRestarted;
 
+        /// <summary>
+        /// Dispatched when activity's OnCreate() is called 
+        /// </summary>
         public event ActivityLifecycleDelegate<Bundle> ActivityCreated;
 
+        /// <summary>
+        /// Dispathed when activity's OnSaveInstanceState is called
+        /// </summary>
         public event ActivityLifecycleDelegate<Bundle> ActivitySaveInstanceState;
 
         /// <summary>

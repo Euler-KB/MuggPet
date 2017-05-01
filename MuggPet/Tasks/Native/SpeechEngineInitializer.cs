@@ -26,8 +26,6 @@ namespace MuggPet.Tasks.Native
         /// </summary>
         public bool RequestInstall { get; set; }
 
-
-
         public SpeechEngineInitializer(IStartActivityAsync host) : base(host)
         {
 

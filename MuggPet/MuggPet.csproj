@@ -61,7 +61,7 @@
     <Compile Include="Activity\Attributes\RegisterReceiverAttribute.cs" />
     <Compile Include="Activity\IMenuActionDispatcher.cs" />
     <Compile Include="Activity\IVisualStateManager.cs" />
-    <Compile Include="Activity\VisualState\Extensions.cs" />
+    <Compile Include="Activity\VisualState\VisualStateExtensions.cs" />
     <Compile Include="Activity\VisualState\VisualStateManager.cs" />
     <Compile Include="App\IDispatchLifecycleEvents.cs" />
     <Compile Include="Activity\IStartActivityAsync.cs" />
@@ -126,7 +126,6 @@
   </ItemGroup>
   <ItemGroup />
   <ItemGroup>
-    <Content Include="Animation\Betwixt\Betwixt.csproj" />
     <AndroidResource Include="Resources\Values\colors.xml" />
     <AndroidResource Include="Resources\Values\Strings.xml" />
     <AndroidResource Include="Resources\Values\styles.xml" />

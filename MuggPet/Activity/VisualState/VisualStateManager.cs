@@ -167,7 +167,7 @@ namespace MuggPet.Activity.VisualState
         /// <summary>
         /// Returns the names of all combined states
         /// </summary>
-        public string [] CombinedStates
+        public string[] CombinedStates
         {
             get { return visualStates.Where(x => x.HasMultipleStates).Select(x => x.Name).ToArray(); }
         }
@@ -279,11 +279,18 @@ namespace MuggPet.Activity.VisualState
 
         public object Value { get; set; }
 
+        public VisualState VisualState { get; set; }
+
+        public VisualStateDescription StateDescription { get; set; }
+
+        /// <summary>
+        /// Applies internal. This usually ends in state reverting
+        /// </summary>
         public void Apply()
         {
             if (Member == null && SetDelegate != null)
             {
-                SetDelegate.DynamicInvoke(Source, Value);
+                SetDelegate.DynamicInvoke(Source, new StateChangeArgs(StateChangeMode.Revert, StateDescription, VisualState, Value));
             }
             else
             {
@@ -310,8 +317,188 @@ namespace MuggPet.Activity.VisualState
         Continuous
     }
 
+    /// <summary>
+    /// Represents a visual state animation for properties
+    /// </summary>
+    public interface IVisualStateAnimation
+    {
+        /// <summary>
+        /// Starts the animation
+        /// </summary>
+        void Start();
+
+        /// <summary>
+        /// Stops playing the animation
+        /// </summary>
+        void Stop();
+
+        /// <summary>
+        /// Determines whether the animation is playing or running
+        /// </summary>
+        bool IsActive { get; }
+    }
+
+
     public class VisualState
     {
+        private class Animation : IVisualStateAnimation
+        {
+            private Android.Animation.Animator _animator;
+            private Action onEnd;
+            public Animation(Android.Animation.Animator animator, Action onEnd)
+            {
+                _animator = animator;
+
+                _animator.AnimationCancel += (s, e) =>
+                {
+                    onEnd?.Invoke();
+                };
+
+                _animator.AnimationEnd += (s, e) =>
+                {
+                    onEnd?.Invoke();
+                };
+
+                this.onEnd = onEnd;
+            }
+
+            public bool IsActive
+            {
+                get { return _animator.IsRunning; }
+            }
+
+            public void Start()
+            {
+                _animator.Start();
+            }
+
+            public void Stop()
+            {
+                _animator.Cancel();
+            }
+        }
+
+        private class PropertyAnimation : IVisualStateAnimation
+        {
+            ViewPropertyAnimator _animator;
+
+            List<Android.Animation.Animator> animations = new List<Android.Animation.Animator>();
+            private Action onEnd;
+            public PropertyAnimation(ViewPropertyAnimator animator, Action onEnd)
+            {
+                _animator = animator;
+                this.onEnd = onEnd;
+                _animator.SetListener(new MuggPet.Animation.AnimationListener((a) => animations.Add(a),
+                    cancelAction: (a) => OnAnimationEnd(a),
+                    endAction: (a) => OnAnimationEnd(a)));
+            }
+
+            void OnAnimationEnd(Android.Animation.Animator animation)
+            {
+                animations.Remove(animation);
+                if (!IsActive)
+                    onEnd?.Invoke();
+            }
+
+            public bool IsActive => animations.Any(x => x.IsRunning);
+
+            public void Start()
+            {
+                _animator.Start();
+            }
+
+            public void Stop()
+            {
+                _animator.Cancel();
+            }
+        }
+
+        public class AnimationState
+        {
+            public VisualStateDescription Description { get; }
+
+            private Dictionary<string, IVisualStateAnimation> _animations;
+
+            public IDictionary<string, IVisualStateAnimation> Animations => _animations;
+
+            public AnimationState(VisualStateDescription description)
+            {
+                _animations = new Dictionary<string, IVisualStateAnimation>();
+                Description = description;
+            }
+
+            public void Cancel(string key)
+            {
+                IVisualStateAnimation anim;
+                if (_animations.TryGetValue(key, out anim))
+                {
+                    anim.Stop();
+                    _animations.Remove(key);
+                }
+            }
+
+            public void StopAll(bool clear = true)
+            {
+                foreach (var animation in _animations.Values)
+                    animation.Stop();
+
+                if (clear)
+                    _animations.Clear();
+            }
+
+            public bool IsAnimating
+            {
+                get { return Animations.Any(x => x.Value.IsActive); }
+            }
+
+            public IVisualStateAnimation Create(string key, Android.Animation.Animator animator, Action onEnd = null)
+            {
+
+                IVisualStateAnimation anim = null;
+                if (_animations.TryGetValue(key, out anim))
+                    return anim;
+
+                //
+                anim = new Animation(animator, onEnd);
+                _animations[key] = anim;
+                return anim;
+            }
+
+            public IVisualStateAnimation Create(string key, ViewPropertyAnimator propertyAnimator, Action onEnd = null)
+            {
+                IVisualStateAnimation anim = null;
+                if (_animations.TryGetValue(key, out anim))
+                    return anim;
+
+                //
+                anim = new PropertyAnimation(propertyAnimator, onEnd);
+                _animations[key] = anim;
+                return anim;
+            }
+
+        }
+
+        private IDictionary<VisualStateDescription, AnimationState> _animationStates = new Dictionary<VisualStateDescription, AnimationState>();
+
+        public AnimationState GetAnimationState(VisualStateDescription description)
+        {
+            AnimationState state;
+            _animationStates.TryGetValue(description, out state);
+            return state;
+        }
+
+        public AnimationState CreateAnimationState(VisualStateDescription stateDescription)
+        {
+            var state = GetAnimationState(stateDescription);
+            if (state == null)
+            {
+                state = new AnimationState(stateDescription);
+                _animationStates[stateDescription] = state;
+            }
+
+            return state;
+        }
+
         private IEnumerable<VisualState> _existingVisualStates;
 
         private bool deferContinuousUpdate;
@@ -337,12 +524,18 @@ namespace MuggPet.Activity.VisualState
 
         public VisualStateManager StateManager { get; }
 
+        /// <summary>
+        /// Gets a collection of state descriptions for this state
+        /// </summary>
         public ICollection<VisualStateDescription> StateDescriptions { get; } = new List<VisualStateDescription>();
 
         private Action _activateCallback;
 
         private bool _isPrepared;
 
+        /// <summary>
+        /// Determines whether this state is combined with other states
+        /// </summary>
         public bool HasMultipleStates
         {
             get { return _existingVisualStates?.Count() > 0; }
@@ -368,6 +561,9 @@ namespace MuggPet.Activity.VisualState
             return Name.GetHashCode();
         }
 
+        /// <summary>
+        /// Gets a list containing the states of the current
+        /// </summary>
         public IEnumerable<MemberState> MemberStates
         {
             get
@@ -383,7 +579,9 @@ namespace MuggPet.Activity.VisualState
                         {
                             SetDelegate = state.SetDelegate,
                             Source = state.Source,
-                            Value = state.GetDelegate.DynamicInvoke(state.Source)
+                            Value = state.GetDelegate.DynamicInvoke(state.Source),
+                            VisualState = this,
+                            StateDescription = state
                         });
                     }
                     else
@@ -398,7 +596,9 @@ namespace MuggPet.Activity.VisualState
                                     Member = state.Member,
                                     Value = property.GetValue(state.Source),
                                     Source = state.Source,
-                                    SetDelegate = state.SetDelegate
+                                    SetDelegate = state.SetDelegate,
+                                    VisualState = this,
+                                    StateDescription = state
                                 });
                             }
                         }
@@ -457,7 +657,7 @@ namespace MuggPet.Activity.VisualState
                 if (state.Member == null)
                 {
                     //  probably using delegates...
-                    state.SetDelegate.DynamicInvoke(state.Source, null);
+                    state.SetDelegate.DynamicInvoke(state.Source, new StateChangeArgs(StateChangeMode.NewState, state, this));
                 }
                 else
                 {
@@ -575,14 +775,22 @@ namespace MuggPet.Activity.VisualState
     {
         private VisualState state;
 
+        /// <summary>
+        /// Gets the associated visual state
+        /// </summary>
+        public VisualState State
+        {
+            get { return state; }
+        }
+
         private StateObjectDefinitionWrapper objectLayout;
 
-        public StateObjectDefinitionWrapper ObjectDefinition => objectLayout;
+        public StateObjectDefinitionWrapper Object => objectLayout;
 
-        public StateMemberDefinitionWrapper(VisualState state, StateObjectDefinitionWrapper objectLayout)
+        public StateMemberDefinitionWrapper(VisualState state, StateObjectDefinitionWrapper objectBluePrint)
         {
             this.state = state;
-            this.objectLayout = objectLayout;
+            this.objectLayout = objectBluePrint;
         }
 
         MemberInfo GetExpressionMember<TResult>(Expression<Func<T, TResult>> expression)
@@ -619,7 +827,7 @@ namespace MuggPet.Activity.VisualState
         /// <param name="expression">An expression for selecting the property to attach. Only properties with get and set accessors are supported</param>
         /// <param name="value">The value to assign the property when state is activated</param>
         /// <param name="unique">Determines whether to ensure the property is set once</param>
-        public StateMemberDefinitionWrapper<T> SetProperty<TResult>(Expression<Func<T, TResult>> expression , TResult value , bool unique)
+        public StateMemberDefinitionWrapper<T> SetProperty<TResult>(Expression<Func<T, TResult>> expression, TResult value, bool unique)
         {
             return WithProperty(expression).Set(value);
         }
@@ -637,11 +845,11 @@ namespace MuggPet.Activity.VisualState
                 {
                     state.StateDescriptions.Add(new VisualStateDescription()
                     {
-                         GetDelegate = desc.GetDelegate,
-                         Member = desc.Member,
-                         Parameters = desc.Parameters,
-                         SetDelegate = desc.SetDelegate,
-                         Source = item
+                        GetDelegate = desc.GetDelegate,
+                        Member = desc.Member,
+                        Parameters = desc.Parameters,
+                        SetDelegate = desc.SetDelegate,
+                        Source = item
                     });
                 }
             }
@@ -652,9 +860,9 @@ namespace MuggPet.Activity.VisualState
         /// <summary>
         /// Exposes state definition to callbacks
         /// </summary>
-        /// <param name="onSetValue">Invoked by the state manager to either apply or revert state to an object or view property. When this method is invoked with a null the value argument (T, object value), it indicates the application of a new state else revert the state to the given value.</param>
+        /// <param name="onSetValue">Invoked by the state manager to either apply or revert state to an object or view property</param>
         /// <param name="onGetValue">Invoked to get the the current state of the object or view property</param>
-        public StateMemberDefinitionWrapper<T> WithComplex(Action<T, object> onSetValue, Func<T, object> onGetValue)
+        public StateMemberDefinitionWrapper<T> WithCallback(Action<T, StateChangeArgs> onSetValue, Func<T, object> onGetValue)
         {
             state.StateDescriptions.Add(new VisualStateDescription()
             {
@@ -666,6 +874,73 @@ namespace MuggPet.Activity.VisualState
             return this;
         }
 
+
+    }
+
+    /// <summary>
+    /// Represents the mode for a state change
+    /// </summary>
+    public enum StateChangeMode
+    {
+        /// <summary>
+        /// Apply new state
+        /// </summary>
+        NewState,
+
+        /// <summary>
+        /// Revert state
+        /// </summary>
+        Revert
+    }
+
+    /// <summary>
+    /// Represent state change argument
+    /// </summary>
+    public class StateChangeArgs
+    {
+        /// <summary>
+        /// The mode for state change
+        /// </summary>
+        public StateChangeMode Mode { get; }
+
+        /// <summary>
+        /// The original state object
+        /// </summary>
+        public object OriginalState { get; set; }
+
+        /// <summary>
+        /// The visual state description for the current
+        /// </summary>
+        public VisualStateDescription StateDescription { get; }
+
+        /// <summary>
+        /// The visual state object associated with this state
+        /// </summary>
+        public VisualState VisualState { get; }
+
+        /// <summary>
+        /// Gets the animation state for this visual state
+        /// </summary>
+        public VisualState.AnimationState AnimationState
+        {
+            get
+            {
+                return VisualState.GetAnimationState(StateDescription);
+            }
+        }
+
+        public StateChangeArgs(StateChangeMode mode, VisualStateDescription desc, VisualState visualState) : this(mode, desc, visualState, null)
+        {
+
+        }
+
+        public StateChangeArgs(StateChangeMode mode, VisualStateDescription desc, VisualState visualState, object originalState)
+        {
+            Mode = mode;
+            OriginalState = originalState;
+            StateDescription = desc;
+            VisualState = visualState;
+        }
     }
 
     /// <summary>
@@ -690,11 +965,13 @@ namespace MuggPet.Activity.VisualState
         /// <param name="value">The value for the property</param>
         /// /// <param name="unique">Determines whether to ensure the property is set once</param>
         /// <returns></returns>
-        public StateMemberDefinitionWrapper<TSource> Set(TProperty value , bool unique = false)
+        public StateMemberDefinitionWrapper<TSource> Set(TProperty value, bool unique = false)
         {
             if (unique)
             {
-                var existing = state.StateDescriptions.FirstOrDefault(x => x.Member == memberInfo && memberDefinition.ObjectDefinition.SourceObject == x.Source);
+                var existing = state.StateDescriptions.FirstOrDefault(x => object.Equals(x.Member, memberInfo) &&
+                object.Equals(memberDefinition.Object.SourceObject, x.Source));
+
                 if (existing != null)
                     state.StateDescriptions.Remove(existing);
             }
@@ -702,7 +979,7 @@ namespace MuggPet.Activity.VisualState
             state.StateDescriptions.Add(new VisualStateDescription()
             {
                 Member = memberInfo,
-                Source = memberDefinition.ObjectDefinition.SourceObject,
+                Source = memberDefinition.Object.SourceObject,
                 Parameters = new object[] { value },
             });
 

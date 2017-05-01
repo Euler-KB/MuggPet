@@ -69,7 +69,6 @@ namespace MuggPet.App
             BindingHandler.BindCommandDirect(this, command, targetView, true);
         }
 
-
         /// <summary>
         /// Binds a command directly to the specified view
         /// </summary>
