@@ -13,6 +13,7 @@ using Android.Widget;
 using MuggPet.Activity;
 using MuggPet.Activity.VisualState;
 using MuggPet.Binding;
+using MuggPet.Commands;
 
 namespace MuggPet.App
 {
@@ -56,6 +57,27 @@ namespace MuggPet.App
         public BaseFragment(int layoutID)
         {
             this.layoutID = layoutID;
+        }
+
+        /// <summary>
+        /// Binds a command directly to the specified view
+        /// </summary>
+        /// <param name="command">The command to bind</param>
+        /// <param name="targetView">The target view</param>
+        public void BindCommand(ICommand command, View targetView)
+        {
+            BindingHandler.BindCommandDirect(this, command, targetView, true);
+        }
+
+
+        /// <summary>
+        /// Binds a command directly to the specified view
+        /// </summary>
+        /// <param name="command">The command to bind</param>
+        /// <param name="targetView">The target view id</param>
+        public void BindCommand(ICommand command, int viewID)
+        {
+            BindCommand(command, View.FindViewById(viewID));
         }
 
         public override async void OnActivityCreated(Bundle savedInstanceState)

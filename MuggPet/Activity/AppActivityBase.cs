@@ -83,6 +83,7 @@ namespace MuggPet.Activity
             return state;
         }
 
+
         public Task<ActivityResultState> StartActivityForResultAsync(Intent intent)
         {
             return InternalStartActivityAsync((requestCode) => StartActivityForResult(intent, requestCode));
@@ -278,7 +279,7 @@ namespace MuggPet.Activity
         /// <param name="resLayoutID">The layout resource id for the activity. If set to -1, no content is loaded.</param>
         /// <param name="exitDelay">The delay prior exiting activity</param>
         /// <param name="closeInterval">The delay between double back presses that will prevent activity from exiting</param>
-        /// <param name="menuResourceID">The menu resource id for the activity</param>
+        /// <param name="menuResourceID">The menu resource id for the activity. If set to -1, no menu resouce is loaded</param>
         /// <param name="closeMethod">Determines how back bressed event is handled</param>
         public AppActivityBase(int resLayoutID, int exitDelay = 320, int closeInterval = 2100, int menuResourceID = -1, CloseMethod closeMethod = CloseMethod.System)
         {
@@ -499,9 +500,34 @@ namespace MuggPet.Activity
             return base.OnKeyDown(keyCode, e);
         }
 
+        /// <summary>
+        /// Invoked when the home button is pressed. 
+        /// TODO: Override and implement custom logic
+        /// </summary>
         protected virtual void OnHomeButtonPressed()
         {
             Finish();
+        }
+
+        /// <summary>
+        /// Binds a command directly to the specified view
+        /// </summary>
+        /// <param name="command">The command to bind</param>
+        /// <param name="targetView">The target view</param>
+        public void BindCommand(ICommand command , View targetView)
+        {
+            BindingHandler.BindCommandDirect(this, command, targetView, true);
+        }
+
+
+        /// <summary>
+        /// Binds a command directly to the specified view
+        /// </summary>
+        /// <param name="command">The command to bind</param>
+        /// <param name="targetView">The target view id</param>
+        public void BindCommand(ICommand command, int viewID)
+        {
+            BindCommand(command, FindViewById(viewID));
         }
 
         public bool DispatchSelected(int itemID)
