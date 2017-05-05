@@ -23,6 +23,10 @@ namespace MuggPet.Dialogs
     {
         private bool? result;
 
+        /// <summary>
+        /// Initializes an accept dialog result with nullable bool as the input parameter
+        /// </summary>
+        /// <param name="value">This values determines whether the request was either accepted or declined. True for acceptance, False for decline and null for cancellation</param>
         public AcceptDialogResult(bool? value)
         {
             this.result = value;
@@ -182,18 +186,18 @@ namespace MuggPet.Dialogs
         /// Shows a dialog which accepts a positive or negative input from the user. This is useful for requesting for user choices.
         /// </summary>
         /// <param name="context">The context object for creating and showing the dialog</param>
-        /// <param name="title">The title of the dialog</param>
+        /// <param name="titleID">The title of the dialog</param>
         /// <param name="messageID">The resouce id of the message to show</param>
         /// <param name="posButtonResID">The resource id of the text on the positive button. If null, its ignored</param>
         /// <param name="negButtonResID">The resource id of the text on the negative button. If null, its ignored</param>
         /// <param name="cancelable">Determines whether the dialog is cancellable</param>
         /// <returns>A result indicating the users selection</returns>
-        public static Task<AcceptDialogResult> ShowAcceptDialog(this Context context, int titleID, int messageID, int? posButtonResID = null, int? negButtonResID = null, bool cancellable = true)
+        public static Task<AcceptDialogResult> ShowAcceptDialog(this Context context, int titleID, int messageID, int? posButtonResID = null, int? negButtonResID = null, bool cancelable = true)
         {
             return ShowAcceptDialog(context, context.GetString(titleID), context.GetString(messageID),
                 posButtonResID == null ? null : context.GetString(posButtonResID.Value),
                 negButtonResID == null ? null : context.GetString(negButtonResID.Value),
-                cancellable);
+                cancelable);
         }
 
         /// <summary>
@@ -206,7 +210,7 @@ namespace MuggPet.Dialogs
         /// <param name="negativeButtonText">The text on the negative button. If null its</param>
         /// <param name="cancelable">Determines whether the dialog is cancellable</param>
         /// <returns>A result indicating the users selection</returns>
-        public static async Task<AcceptDialogResult> ShowAcceptDialog(this Context context, string title, string message, string positiveButtonText, string negativeButtonText = "Cancel", bool cancelable = true)
+        public static async Task<AcceptDialogResult> ShowAcceptDialog(this Context context, string title, string message, string positiveButtonText = "Yes", string negativeButtonText = "No", bool cancelable = true)
         {
             bool? accept = null;
 

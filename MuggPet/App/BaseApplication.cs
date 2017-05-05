@@ -79,7 +79,7 @@ namespace MuggPet.App
         /// <summary>
         /// Gets the current application instance
         /// </summary>
-        public static BaseApplication Current { get; private set; }
+        public static BaseApplication Instance { get; private set; }
 
         private IDictionary<string, object> _properties;
 
@@ -163,7 +163,7 @@ namespace MuggPet.App
         protected virtual void OnLoadComponents()
         {
             //  assign current activity
-            Current = this;
+            Instance = this;
 
             //  Load components
 

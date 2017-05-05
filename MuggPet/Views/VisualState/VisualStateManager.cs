@@ -12,10 +12,10 @@ using Android.Widget;
 using System.Reflection;
 using System.Linq.Expressions;
 
-namespace MuggPet.Activity.VisualState
+namespace MuggPet.Views.VisualState
 {
     /// <summary>
-    /// Manages visual states for a given context (activity,fragment....etc)
+    /// Manages the registration and activation of visual states
     /// </summary>
     public class VisualStateManager
     {
@@ -39,7 +39,6 @@ namespace MuggPet.Activity.VisualState
         /// Invoked upon state changes
         /// </summary>
         public event EventHandler<string> StateChanged;
-
 
         /// <summary>
         /// Invoked upon resetting the state manager
@@ -186,20 +185,20 @@ namespace MuggPet.Activity.VisualState
         /// <param name="name">The name of the state to fetch</param>
         public VisualState GetStateWithName(string name)
         {
-            return visualStates.FirstOrDefault(x => x.Name == name);
+            return visualStates.FirstOrDefault(x => x.Name.Equals(name));
         }
 
-        VisualState MakeNewState(string name, IEnumerable<VisualState> existingStates = null)
+        private VisualState MakeNewState(string name, IEnumerable<VisualState> existingStates = null)
         {
+            if (visualStates.Any(x => x.Name.Equals(name)))
+                throw new Exception($"The state name '{name}' is already registered!");
+
             VisualState state = null;
 
             if (existingStates == null)
                 state = new VisualState(this, name);
             else
                 state = new VisualState(this, name, existingStates);
-
-            if (visualStates.Contains(state))
-                throw new Exception($"The state name '{name}' is already registered!");
 
             visualStates.Add(state);
 
@@ -232,7 +231,7 @@ namespace MuggPet.Activity.VisualState
         }
 
         /// <summary>
-        /// Moves the the specified state
+        /// Activates the the specified state if not already activated
         /// </summary>
         /// <param name="stateName">The name of the destination state</param>
         public bool GotoState(string stateName)
@@ -307,7 +306,7 @@ namespace MuggPet.Activity.VisualState
     public enum StateActivationMode
     {
         /// <summary>
-        /// State activation logic happens once and cached for performance
+        /// State activation logic happens once and cached for later calls. This is the default activation mode for all visual states
         /// </summary>
         Single,
 
@@ -318,7 +317,7 @@ namespace MuggPet.Activity.VisualState
     }
 
     /// <summary>
-    /// Represents a visual state animation for properties
+    /// Provides an interface for controlling animation
     /// </summary>
     public interface IVisualStateAnimation
     {
@@ -437,13 +436,12 @@ namespace MuggPet.Activity.VisualState
                 }
             }
 
-            public void StopAll(bool clear = true)
+            public void CancelAll()
             {
                 foreach (var animation in _animations.Values)
                     animation.Stop();
 
-                if (clear)
-                    _animations.Clear();
+                _animations.Clear();
             }
 
             public bool IsAnimating
@@ -484,44 +482,55 @@ namespace MuggPet.Activity.VisualState
         {
             AnimationState state;
             _animationStates.TryGetValue(description, out state);
-            return state;
-        }
-
-        public AnimationState CreateAnimationState(VisualStateDescription stateDescription)
-        {
-            var state = GetAnimationState(stateDescription);
             if (state == null)
             {
-                state = new AnimationState(stateDescription);
-                _animationStates[stateDescription] = state;
+                state = new AnimationState(description);
+                _animationStates[description] = state;
             }
 
             return state;
         }
 
+
         private IEnumerable<VisualState> _existingVisualStates;
 
         private bool deferContinuousUpdate;
 
+        /// <summary>
+        /// Defers update of state activation logic for the next call
+        /// </summary>
         public void DeferContinuousUpdate()
         {
             deferContinuousUpdate = true;
         }
 
+        /// <summary>
+        /// Cancels previously defered continuous update
+        /// </summary>
         public void CancelContinueUpdateDefer()
         {
             deferContinuousUpdate = false;
         }
 
+        /// <summary>
+        /// Gets combined states belonging to this state
+        /// </summary>
         public IEnumerable<VisualState> CombinedStates
         {
             get { return _existingVisualStates; }
         }
 
+        /// <summary>
+        /// Gets the name of the state
+        /// </summary>
         public string Name { get; }
+
 
         internal StateActivationMode ActivationMode { get; private set; }
 
+        /// <summary>
+        /// Gets the visual state manager in context
+        /// </summary>
         public VisualStateManager StateManager { get; }
 
         /// <summary>
@@ -728,7 +737,6 @@ namespace MuggPet.Activity.VisualState
             visualState = state;
         }
 
-
         /// <summary>
         /// Attaches the object to the current state
         /// </summary>
@@ -801,6 +809,8 @@ namespace MuggPet.Activity.VisualState
                 case ExpressionType.MemberAccess:
                     member = (expression.Body as MemberExpression).Member;
                     break;
+                default:
+                    throw new NotSupportedException("Unsupported expression supplied!");
             }
 
             //  we currently deal with properties.... might improve in future
@@ -827,7 +837,7 @@ namespace MuggPet.Activity.VisualState
         /// <param name="expression">An expression for selecting the property to attach. Only properties with get and set accessors are supported</param>
         /// <param name="value">The value to assign the property when state is activated</param>
         /// <param name="unique">Determines whether to ensure the property is set once</param>
-        public StateMemberDefinitionWrapper<T> SetProperty<TResult>(Expression<Func<T, TResult>> expression, TResult value, bool unique)
+        public StateMemberDefinitionWrapper<T> SetProperty<TResult>(Expression<Func<T, TResult>> expression, TResult value, bool unique = false)
         {
             return WithProperty(expression).Set(value);
         }
@@ -846,10 +856,10 @@ namespace MuggPet.Activity.VisualState
                     state.StateDescriptions.Add(new VisualStateDescription()
                     {
                         GetDelegate = desc.GetDelegate,
+                        SetDelegate = desc.SetDelegate,
                         Member = desc.Member,
                         Parameters = desc.Parameters,
-                        SetDelegate = desc.SetDelegate,
-                        Source = item
+                        Source = item,
                     });
                 }
             }
@@ -899,7 +909,7 @@ namespace MuggPet.Activity.VisualState
     public class StateChangeArgs
     {
         /// <summary>
-        /// The mode for state change
+        /// Gets the mode for state change
         /// </summary>
         public StateChangeMode Mode { get; }
 
@@ -969,11 +979,12 @@ namespace MuggPet.Activity.VisualState
         {
             if (unique)
             {
-                var existing = state.StateDescriptions.FirstOrDefault(x => object.Equals(x.Member, memberInfo) &&
+
+                var existing = state.StateDescriptions.Where(x => object.Equals(x.Member, memberInfo) &&
                 object.Equals(memberDefinition.Object.SourceObject, x.Source));
 
-                if (existing != null)
-                    state.StateDescriptions.Remove(existing);
+                foreach (var item in existing)
+                    state.StateDescriptions.Remove(item);
             }
 
             state.StateDescriptions.Add(new VisualStateDescription()

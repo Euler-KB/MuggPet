@@ -43,6 +43,11 @@ namespace MuggPet.Tasks
             _result = result;
         }
 
+        /// <summary>
+        /// Initializes a new task result with an explicit success state
+        /// </summary>
+        /// <param name="success">True if task succeeded else failed</param>
+        /// <param name="result">The result from the task</param>
         public TaskResult(bool success, T result)
         {
             _success = success;
@@ -50,9 +55,9 @@ namespace MuggPet.Tasks
         }
 
         /// <summary>
-        /// Initializes a new task 
+        /// Initializes an unsuccessful task with an error message
         /// </summary>
-        /// <param name="errorMessage"></param>
+        /// <param name="errorMessage">The failure reason</param>
         public TaskResult(string errorMessage)
         {
             _success = false;

@@ -12,7 +12,7 @@ using System.Collections;
 using System.Reflection;
 using Android.Graphics.Drawables;
 using MuggPet.Commands;
-using MuggPet.Utils.Adapter;
+using MuggPet.Adapters;
 
 namespace MuggPet.Binding
 {
@@ -28,17 +28,17 @@ namespace MuggPet.Binding
         None,
 
         /// <summary>
-        /// Useful when building dynamic views. If causes a new id to be generated for the target view
+        /// Useful when building dynamic views. If causes a new id to be generated for the target view. Only applicable with view attachment bindings
         /// </summary>
         GenerateViewID = 0x100000,
 
         /// <summary>
-        /// Disables binding for resources
+        /// Disables resource bindings
         /// </summary>
         NoResource = 0x200000,
 
         /// <summary>
-        /// Disables object binding
+        /// Disables command binding
         /// </summary>
         NoCommand = 0x400000,
 
@@ -86,7 +86,7 @@ namespace MuggPet.Binding
     public class BindIDAttribute : Attribute, IBindingAttribute
     {
         /// <summary>
-        /// Gets the id of the target view
+        /// Gets the id of the target view. The view is fetched and attached and attached upon view attachment bindings, loaded and binded for view content and view 
         /// </summary>
         public int ID { get; }
 
@@ -179,6 +179,11 @@ namespace MuggPet.Binding
                     BindingUtils.BindAuto(view, Target, "SetImageBitmap", propertyValue, null);
                 }
             }
+            else
+            {
+                //  default
+                BindingUtils.BindAuto(view, Target, null, propertyValue, StringFormat);
+            }
         }
 
         public object OnBindViewValueToProperty(View view, Type propertyType)
@@ -199,6 +204,10 @@ namespace MuggPet.Binding
             {
                 if (propertyType == typeof(bool))
                     return ((CheckBox)view).Checked;
+            }
+            else
+            {
+
             }
 
             //
@@ -248,21 +257,23 @@ namespace MuggPet.Binding
         /// <summary>
         /// Invoked to perform binding
         /// </summary>
+        /// <param name="command">The command beign bound</param>
         /// <param name="targetView">The view to bind to</param>
-        void OnBind(ICommand command, View targetView);
+        /// <param name="parameter">An optional parameter for the command</param>
+        bool OnBind(ICommand command, View targetView, object parameter);
 
         /// <summary>
         /// Invoked to revert binding
         /// </summary>
-        void OnUnBind(ICommand command, View targetView);
+        void OnUnBind();
     }
 
     /// <summary>
     /// Binds a command to view.
-    /// Current implementation supports only views deriving from CompoundButton.
+    /// Implementation only supports buttons (Button , CompoundButton, ImageButton).
     /// Any other functionalities can be implemented through subclassing
     /// </summary>
-    [AttributeUsage(AttributeTargets.Property | AttributeTargets.Field, AllowMultiple = false, Inherited = false)]
+    [AttributeUsage(AttributeTargets.Property | AttributeTargets.Field, AllowMultiple = true, Inherited = false)]
     public class BindCommand : Attribute, ICommandBinding
     {
         /// <summary>
@@ -278,23 +289,47 @@ namespace MuggPet.Binding
         /// <summary>
         /// Gets the bound command. 
         /// </summary>
-        protected ICommand Command { get; set; }
+        protected ICommand Command { get; private set; }
+
+        /// <summary>
+        /// Gets the bound view
+        /// </summary>
+        protected View View { get; private set; }
+
+        /// <summary>
+        /// Gets the parameter for the command
+        /// </summary>
+        protected object Parameter { get; private set; }
+
+        /// <summary>
+        /// Gets or sets the tag for this command
+        /// </summary>
+        public string Tag { get; set; }
+
 
         public BindCommand(int id)
         {
             ID = id;
         }
 
-        public void OnBind(ICommand command, View targetView)
+        public bool OnBind(ICommand command, View targetView, object parameter)
         {
-            if (!Equals(command, Command))
+            if (Command == null)
             {
                 if (IsSupportedView(targetView))
                 {
+                    //  Keep reference of command and view
+                    View = targetView;
                     Command = command;
+                    Parameter = parameter;
+
                     OnBindView(targetView);
+
+                    return true;
                 }
             }
+
+            return false;
         }
 
         /// <summary>
@@ -303,25 +338,17 @@ namespace MuggPet.Binding
         /// <param name="view">The view to determine</param>
         protected virtual bool IsSupportedView(View view)
         {
-            return view is Button || view is CompoundButton;
+            return view is Button || view is CompoundButton || view is ImageButton;
         }
 
         protected virtual void OnBindView(View view)
         {
-            var btn = view as CompoundButton;
-            if (btn != null)
-            {
-                btn.Click += OnBindAction;
-            }
+            view.Click += OnBindAction;
         }
 
         protected virtual void OnUnBindView(View view)
         {
-            var btn = view as CompoundButton;
-            if (btn != null)
-            {
-                btn.Click -= OnBindAction;
-            }
+            view.Click -= OnBindAction;
         }
 
         private void OnBindAction(object sender, EventArgs e)
@@ -334,45 +361,106 @@ namespace MuggPet.Binding
 
         protected virtual void OnExecuteCommand(ICommand command)
         {
-            if (command.CanExecute(null))
-                command.Execute(null);
+            if (command.CanExecute(Parameter))
+                command.Execute(Parameter);
         }
 
-        public void OnUnBind(ICommand command, View targetView)
+        public void OnUnBind()
         {
-            if (IsSupportedView(targetView) && object.Equals(Command, command))
+            if (Command != null && View != null)
             {
-                OnUnBindView(targetView);
+                OnUnBindView(View);
+
+                //  destroy references
                 Command = null;
+                View = null;
             }
         }
     }
 
     /// <summary>
-    /// Useful for binding color properties to views
+    /// The base for all attributes that bind to properties of views
     /// </summary>
-    public class BindColor : Attribute, IBindingAttribute
+    public abstract class ViewPropertyBind : Attribute, IBindingAttribute
     {
-        public int ID { get; private set; }
+        public bool CanBindViewContent { get; } = false;
 
+        public int ID { get; }
+
+        public ViewPropertyBind(int id) { ID = id; }
+
+        public bool CanAttachView(View view, MemberInfo memberInfo, Type memberType) => false;
+
+        public virtual void OnBindPropertyToView(View view, object propertyValue, Type propertyType, MemberInfo memberInfo)
+        {
+            // TODO: Override and implement property binding
+        }
+
+        public object OnBindViewValueToProperty(View view, Type propertyType)
+        {
+            throw new NotSupportedException();
+        }
+    }
+
+    /// <summary>
+    /// Applies visibility state to the target view
+    /// </summary>
+    public class BindVisibility : ViewPropertyBind
+    {
+        /// <summary>
+        /// Inverts the value of the property before binding take place
+        /// </summary>
+        public bool Invert { get; set; }
+
+        public BindVisibility(int id) : base(id)
+        {
+
+        }
+
+        public override void OnBindPropertyToView(View view, object propertyValue, Type propertyType, MemberInfo memberInfo)
+        {
+            if (propertyType == typeof(bool))
+            {
+                bool value = ((bool)propertyValue);
+                view.Visibility = (Invert ? !value : value) ? ViewStates.Visible : ViewStates.Gone;
+            }
+            else if (propertyType == typeof(ViewStates))
+            {
+                var value = ((ViewStates)propertyValue);
+
+                if (Invert)
+                {
+                    if (value == ViewStates.Gone || value == ViewStates.Invisible)
+                        value = ViewStates.Visible;
+                    else if (value == ViewStates.Visible)
+                        value = ViewStates.Gone;
+                }
+
+                view.Visibility = value;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Binds member color to target view
+    /// </summary>
+    public class BindColor : ViewPropertyBind
+    {
         /// <summary>
         /// Determines the property to apply the color
         /// </summary>
         public ColorSetMode Mode { get; set; } = ColorSetMode.Foreground;
 
-        public bool CanBindViewContent => false;
-
-        public BindColor(int id)
+        /// <summary>
+        /// Initiates a new color binding to the view with the given id
+        /// </summary>
+        /// <param name="id">The id of the target view</param>
+        public BindColor(int id) : base(id)
         {
-            ID = id;
+
         }
 
-        public bool CanAttachView(View view, MemberInfo memberInfo, Type memberType)
-        {
-            return false;
-        }
-
-        public void OnBindPropertyToView(View view, object propertyValue, Type propertyType, MemberInfo memberInfo)
+        public override void OnBindPropertyToView(View view, object propertyValue, Type propertyType, MemberInfo memberInfo)
         {
             if (propertyType == typeof(Color))
             {
@@ -406,10 +494,6 @@ namespace MuggPet.Binding
             view.SetBackgroundColor(background);
         }
 
-        public object OnBindViewValueToProperty(View view, Type propertyType)
-        {
-            throw new NotSupportedException();
-        }
     }
 
     /// <summary>
@@ -614,7 +698,7 @@ namespace MuggPet.Binding
         /// </summary>
         /// <param name="context">The context for fetching resources</param>
         /// <param name="targetType">The expected type of the loaded resource</param>
-        /// <returns>The load resource object of the target type</returns>
+        /// <returns>The loaded resource object of the target type</returns>
         object LoadResource(Context context, Type targetType);
     }
 
@@ -628,6 +712,12 @@ namespace MuggPet.Binding
 
         public int ID { get { return id; } }
 
+        /// <summary>
+        /// Loads the resource object with the given id
+        /// </summary>
+        /// <param name="context">The context for fetching resources</param>
+        /// <param name="targetType">The expected type of the loaded resource</param>
+        /// <returns>The loaded resource object of the target type</returns>
         public abstract object LoadResource(Context context, Type targetType);
     }
 
@@ -657,13 +747,19 @@ namespace MuggPet.Binding
     [System.AttributeUsage(AttributeTargets.Property | AttributeTargets.Field, Inherited = false, AllowMultiple = false)]
     public sealed class BindResourceAttribute : ResourceAttribute, IBindingAttribute
     {
+        /// <summary>
+        /// Initializes a new resource binding on the adorned field or property with the given id of the resource
+        /// </summary>
+        /// <param name="ID">The id of the resource. The type of resource to fetch is determined by the adorned member type. Thus if this attribute is placed over a color member, a color resource will be fetched.</param>
         public BindResourceAttribute(int ID)
         {
             this.id = ID;
         }
 
-        //  Can't bind view content to this attribute
-        public bool CanBindViewContent => false;    
+        /// <summary>
+        /// Determines whether support view content binding
+        /// </summary>>
+        public bool CanBindViewContent => false;
 
         /// <summary>
         /// The property to apply the resource to when binding to views. 
@@ -671,12 +767,25 @@ namespace MuggPet.Binding
         /// </summary>
         public string Property { get; set; }
 
+        /// <summary>
+        /// Gets a value indicating whether this attribute can be used for view attachments
+        /// </summary>
+        /// <param name="view">The view to test</param>
+        /// <param name="memberInfo">The member beign bound</param>
+        /// <param name="memberType">The return type of the member</param>
+        /// <returns>True if can attach view</returns>
         public bool CanAttachView(View view, MemberInfo memberInfo, Type memberType)
         {
             //  Can't attach views with this attribute
             return false;
         }
 
+        /// <summary>
+        /// Loads the resource object with the given id
+        /// </summary>
+        /// <param name="context">The context for fetching resources</param>
+        /// <param name="targetType">The expected type of the loaded resource</param>
+        /// <returns>The loaded resource object of the target type</returns>
         public override object LoadResource(Context context, Type targetType)
         {
             if (targetType == typeof(string))
@@ -713,7 +822,7 @@ namespace MuggPet.Binding
 
             //
             var resource = LoadResource(view.Context, propertyType);
-            if(resource != null)
+            if (resource != null)
             {
                 //  apply resource to view
 
@@ -747,16 +856,27 @@ namespace MuggPet.Binding
     }
 
     /// <summary>
-    /// Binds a string array from resource to the adorned property or field
+    /// Binds a string array from resource to the member. 
+    /// The resource is loaded if the member type inherits an IEnumerable interface for strings
     /// </summary>
     [System.AttributeUsage(AttributeTargets.Property | AttributeTargets.Field, Inherited = false, AllowMultiple = false)]
     public sealed class BindStringArrayAttribute : ResourceAttribute, IResourceAttribute
     {
+        /// <summary>
+        /// Initializes a new string array binding from resource to the adorned member
+        /// </summary>
+        /// <param name="ID">The id of the string array resource</param>
         public BindStringArrayAttribute(int ID)
         {
             this.id = ID;
         }
 
+        /// <summary>
+        /// Loads the string array resource with the given id
+        /// </summary>
+        /// <param name="context">The context for fetching resources</param>
+        /// <param name="targetType">The expected type of the loaded resource</param>
+        /// <returns>The loaded resource object of the target type</returns>
         public override object LoadResource(Context context, Type targetType)
         {
             if (targetType.HasInterface<IEnumerable<string>>())

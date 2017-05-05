@@ -9,10 +9,10 @@ using Android.OS;
 using Android.Runtime;
 using Android.Views;
 using Android.Widget;
-using MuggPet.Activity;
 using Android.Provider;
 using Android.Graphics;
 using MuggPet.App;
+using MuggPet.App.Activity;
 
 namespace MuggPet.Tasks.Native
 {
@@ -53,7 +53,6 @@ namespace MuggPet.Tasks.Native
         {
             FileName = path;
         }
-
 
         /// <summary>
         /// Initializes a new camera capture task with a temporary storage file

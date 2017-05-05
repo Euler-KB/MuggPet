@@ -27,7 +27,7 @@ namespace MuggPet.Utils.Cursor
         }
 
         /// <summary>
-        /// Iterates each record within the cursor
+        /// Iterates records within the cursor and finally closes the cursor
         /// </summary>
         /// <param name="cursor">The cursor to be iterated</param>
         /// <param name="iterate">A callback for each record</param>

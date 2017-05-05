@@ -9,8 +9,8 @@ using Android.OS;
 using Android.Runtime;
 using Android.Views;
 using Android.Widget;
-using MuggPet.Activity;
 using Android.Speech.Tts;
+using MuggPet.App.Activity;
 
 namespace MuggPet.Tasks.Native
 {
@@ -41,7 +41,7 @@ namespace MuggPet.Tasks.Native
             if ((int)result.ResultCode != TtsCheckDataPass && RequestInstall)
             {
                 Intent installIntent = new Intent(TextToSpeech.Engine.ActionInstallTtsData);
-                (HostActivity as Android.App.Activity)?.StartActivity(installIntent);
+                (Host as Activity)?.StartActivity(installIntent);
                 return Task.FromResult(false);
             }
 

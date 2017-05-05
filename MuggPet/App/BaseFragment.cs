@@ -10,10 +10,10 @@ using Android.Runtime;
 using Android.Util;
 using Android.Views;
 using Android.Widget;
-using MuggPet.Activity;
-using MuggPet.Activity.VisualState;
 using MuggPet.Binding;
 using MuggPet.Commands;
+using MuggPet.Views;
+using MuggPet.Views.VisualState;
 
 namespace MuggPet.App
 {
@@ -64,19 +64,21 @@ namespace MuggPet.App
         /// </summary>
         /// <param name="command">The command to bind</param>
         /// <param name="targetView">The target view</param>
-        public void BindCommand(ICommand command, View targetView)
+        /// <param name="parameter">An optional parameter for the command</param>
+        public void BindCommand(ICommand command, View targetView, object parameter = null)
         {
-            BindingHandler.BindCommandDirect(this, command, targetView, true);
+            BindingHandler.BindCommandDirect(this, command, targetView, parameter, true);
         }
 
         /// <summary>
         /// Binds a command directly to the specified view
         /// </summary>
         /// <param name="command">The command to bind</param>
-        /// <param name="targetView">The target view id</param>
-        public void BindCommand(ICommand command, int viewID)
+        /// <param name="viewID">The target view id</param>
+        /// <param name="parameter">An optional parameter for the command</param>
+        public void BindCommand(ICommand command, int viewID, object parameter = null)
         {
-            BindCommand(command, View.FindViewById(viewID));
+            BindCommand(command, View.FindViewById(viewID),parameter);
         }
 
         public override async void OnActivityCreated(Bundle savedInstanceState)
@@ -93,6 +95,9 @@ namespace MuggPet.App
             OnLoaded();
         }
 
+        /// <summary>
+        /// Handles defining visual states
+        /// </summary>
         protected virtual void OnHandleVisualStates()
         {
             VisualState.BeginStateDefinition();
@@ -102,11 +107,17 @@ namespace MuggPet.App
             VisualState.FinalizeStateDefinition();
         }
 
+        /// <summary>
+        /// Called to define the visual states for this fragment
+        /// </summary>
         protected virtual void OnDefineVisualStates()
         {
 
         }
 
+        /// <summary>
+        /// Called to initiate binding
+        /// </summary>
         protected virtual Task OnBind()
         {
             //  Attach view to fragment
@@ -115,10 +126,12 @@ namespace MuggPet.App
             return Task.FromResult(0);
         }
 
+        /// <summary>
+        /// Called after the fragment content has been loaded
+        /// </summary>
         protected virtual void OnLoaded()
         {
             //  TODO: Overide and implement loaded logic
-
 
         }
 

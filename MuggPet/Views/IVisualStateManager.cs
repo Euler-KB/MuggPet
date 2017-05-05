@@ -10,8 +10,11 @@ using Android.Runtime;
 using Android.Views;
 using Android.Widget;
 
-namespace MuggPet.Activity
+namespace MuggPet.Views
 {
+    /// <summary>
+    /// Represents the interface for all hosts that support the use of a visual state manager
+    /// </summary>
     public interface IVisualStateManager
     {
         /// <summary>

@@ -11,17 +11,16 @@ using Android.Views;
 using Android.Widget;
 using System.Threading.Tasks;
 
-namespace MuggPet.Tasks
+namespace MuggPet.App.Activity
 {
     /// <summary>
-    /// Represents the interface for a task
+    /// Represents an interface that supports requesting of permissions asynchronously
     /// </summary>
-    public interface ITask<T>
+    public interface IRequestPermissionAsync
     {
         /// <summary>
-        /// Executes the current task
+        /// Requests permission asynchronously
         /// </summary>
-        /// <param name="state">An optional state for the task</param>
-        Task<TaskResult<T>> Execute(object state);
+        Task<PermissionGrantResultState> RequestPermissionAsync(string[] permissions);
     }
 }

@@ -1,8 +1,8 @@
 using System;
 
-using Betwixt.Annotations;
+using MuggPet.Animation.Betwixt.Annotations;
 
-namespace Betwixt
+namespace MuggPet.Animation.Betwixt
 {
     /// <summary>
     /// Generic Implementation to help create IEase function sets, and pipes ease functions to eachother automatically

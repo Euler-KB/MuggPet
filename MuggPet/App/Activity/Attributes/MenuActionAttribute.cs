@@ -10,7 +10,7 @@ using Android.Runtime;
 using Android.Views;
 using Android.Widget;
 
-namespace MuggPet.Activity.Attributes
+namespace MuggPet.App.Activity.Attributes
 {
     /// <summary>
     /// Represents a menu action handler attribute
@@ -23,6 +23,9 @@ namespace MuggPet.Activity.Attributes
         int ID { get; }
     }
 
+    /// <summary>
+    /// Invokes a menu item selection event on the adorned member
+    /// </summary>
     [AttributeUsage(AttributeTargets.Method | AttributeTargets.Property | AttributeTargets.Field, AllowMultiple = false, Inherited = false)]
     public class MenuActionAttribute : Attribute, IMenuActionAttribute
     {

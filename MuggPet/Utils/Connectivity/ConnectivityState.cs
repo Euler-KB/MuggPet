@@ -24,7 +24,9 @@ namespace MuggPet.Utils.Connectivity
         /// </summary>
         public static bool ForegroundOnly { get; set; }
 
+#if MUGGPET_CONNECTIVITY_RECEIVER
         [BroadcastReceiver]
+#endif
         [IntentFilter(new string[] { ConnectivityManager.ConnectivityAction })]
         internal class ConnectivityReceiver : BroadcastReceiver
         {
@@ -44,13 +46,13 @@ namespace MuggPet.Utils.Connectivity
         /// </summary>
         static ConnectivityState()
         {
-            if (App.BaseApplication.Current == null)
+            if (App.BaseApplication.Instance == null)
             {
                 throw new Exception("Cannot start connectivity changes manager. Please ensure your application class derives from MuggPet.App.BaseApplication!");
             }
 
             //  Register connectivity changes listener
-            App.BaseApplication.Current.RegisterReceiver(receiver, new IntentFilter(ConnectivityManager.ConnectivityAction));
+            App.BaseApplication.Instance.RegisterReceiver(receiver, new IntentFilter(ConnectivityManager.ConnectivityAction));
         }
 
         /// <summary>

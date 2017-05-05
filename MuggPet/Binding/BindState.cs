@@ -26,7 +26,7 @@ namespace MuggPet.Binding
         Attach,
 
         /// <summary>
-        /// This binding mode indicates 
+        /// A binding of a view's property to an object
         /// </summary>
         ViewContent,
 
@@ -47,7 +47,7 @@ namespace MuggPet.Binding
     }
 
     /// <summary>
-    /// Describes a the state of a binding
+    /// Serves as a link between between source and target object bindings.
     /// </summary>
     public class BindState
     {
@@ -77,34 +77,41 @@ namespace MuggPet.Binding
         public MemberInfo TargetMember { get; set; }
 
         /// <summary>
-        /// The binding attribute
+        /// The applied binding attribute. Can be null for command bindings for direct command bindings.
         /// </summary>
         public Attribute Attribute { get; set; }
 
-        public void Apply()
+        /// <summary>
+        /// Contains additional/optional data for binding
+        /// </summary>
+        public object Extras { get; set; }
+
+        /// <summary>
+        /// Executes the binding state
+        /// </summary>
+        public bool Execute()
         {
             switch (Mode)
             {
                 case BindingMode.Attach:
-                    InternalAttachView();
-                    break;
+                    return InternalAttachView();
                 case BindingMode.ObjectToView:
-                    InternalBindObjectToView();
-                    break;
+                    return InternalBindObjectToView();
                 case BindingMode.ViewContent:
-                    InternalBindViewContent();
-                    break;
+                    return InternalBindViewContent();
                 case BindingMode.Resource:
-                    InternalBindResource();
-                    break;
+                    return InternalBindResource();
                 case BindingMode.Command:
-                    InternalBindCommand();
-                    break;
+                    return InternalBindCommand();
             }
+
+            return false;
         }
 
-        //  Note: Not all modes support reverting
-        public void Revert()
+        /// <summary>
+        /// Reverts executed state
+        /// </summary>
+        public bool Revert()
         {
             switch (Mode)
             {
@@ -112,9 +119,11 @@ namespace MuggPet.Binding
                     InternalUnBindCommand();
                     break;
             }
+
+            return false;
         }
 
-        public static void SetMemberValue(MemberInfo member, object target, object value)
+        static void SetMemberValue(MemberInfo member, object target, object value)
         {
             if (member.MemberType == MemberTypes.Field)
             {
@@ -128,51 +137,60 @@ namespace MuggPet.Binding
             }
         }
 
-        protected virtual void InternalBindCommand()
+        protected virtual bool InternalBindCommand()
         {
+            if (Source == null || Target == null)
+                return false;
+
             ICommandBinding bindCommand = (ICommandBinding)Attribute;
-            bindCommand.OnBind((ICommand)Source, (View)Target);
+            return bindCommand.OnBind((ICommand)Source, (View)Target, Extras);
         }
 
         protected virtual void InternalUnBindCommand()
         {
             ICommandBinding bindCommand = (ICommandBinding)Attribute;
-            bindCommand.OnUnBind((ICommand)Source, (View)Target);
+            bindCommand.OnUnBind();
         }
 
-        protected virtual void InternalAttachView()
+        protected virtual bool InternalAttachView()
         {
+            if (TargetMember == null || Target == null)
+                return false;
+
             SetMemberValue(TargetMember, Target, Source);
+
+            return true;
         }
 
-        protected virtual void InternalBindViewContent()
+        protected virtual bool InternalBindViewContent()
         {
+            if (TargetMember == null || Target == null || Source == null)
+                return false;
+
             var bindAttrib = ((IBindingAttribute)Attribute);
             SetMemberValue(TargetMember, Target, bindAttrib.OnBindViewValueToProperty((View)Source, TargetMember.GetReturnType()));
+            return true;
         }
 
-        protected virtual void InternalBindObjectToView()
+        protected virtual bool InternalBindObjectToView()
         {
+            if (Target == null || SourceMember == null || Source == null)
+                return false;
+
             var bindAttrib = ((IBindingAttribute)Attribute);
-            if (SourceMember.MemberType == MemberTypes.Field)
-            {
-                var field = (FieldInfo)SourceMember;
-                var fieldValue = field.GetValue(Source);
-                bindAttrib.OnBindPropertyToView((View)Target, fieldValue, field.FieldType, SourceMember);
-            }
-            else if (SourceMember.MemberType == MemberTypes.Property)
-            {
-                var property = (PropertyInfo)SourceMember;
-                var propertyValue = property.GetValue(Source);
-                bindAttrib.OnBindPropertyToView((View)Target, propertyValue, property.PropertyType, SourceMember);
-            }
+            bindAttrib.OnBindPropertyToView((View)Target, SourceMember.GetMemberValue(Source), SourceMember.GetReturnType(), SourceMember);
+            return true;
         }
 
-        protected virtual void InternalBindResource()
+        protected virtual bool InternalBindResource()
         {
             var resourceBind = ((IResourceAttribute)Attribute);
             Context context = (Context)Source;
-            SetMemberValue(TargetMember, Target, resourceBind.LoadResource(context, TargetMember.GetReturnType()));
+            var resource = resourceBind.LoadResource(context, TargetMember.GetReturnType());
+            if (resource != null)
+                SetMemberValue(TargetMember, Target, resource);
+
+            return resource != null;
         }
     }
 }

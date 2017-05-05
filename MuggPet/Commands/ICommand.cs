@@ -31,9 +31,9 @@ namespace MuggPet.Commands
         bool CanExecute(object parameter);
 
         /// <summary>
-        /// Executes the logic of the command
+        /// Executes the command
         /// </summary>
-        /// <param name="parameter">An additional input to the command</param>
+        /// <param name="parameter">An additional input parameter for the command</param>
         Task Execute(object parameter);
     }
 }

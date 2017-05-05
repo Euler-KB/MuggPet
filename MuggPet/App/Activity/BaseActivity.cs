@@ -17,30 +17,31 @@ using MuggPet.Utils;
 using MuggPet.Binding;
 using MuggPet.Views;
 using System.Reflection;
-using MuggPet.Activity.Attributes;
 using MuggPet.Commands;
 using System.Threading;
-using MuggPet.Activity.VisualState;
+using MuggPet.Views.VisualState;
+using MuggPet.App.Activity.Attributes;
+using Android.Content.PM;
 
-namespace MuggPet.Activity
+namespace MuggPet.App.Activity
 {
     /// <summary>
     /// Represents the base activity
     /// </summary>
-    public class AppActivityBase : AppCompatActivity, IStartActivityAsync, ISupportBinding, IMenuActionDispatcher, IVisualStateManager
+    public class BaseActivity : AppCompatActivity, IStartActivityAsync, ISupportBinding, IMenuActionDispatcher, IVisualStateManager, IRequestPermissionAsync
     {
-        #region Start Activity Async 
+        #region Activity Async 
 
         static int RequestId = 0x0;
 
         /// <summary>
-        /// Generates a new request id
+        /// Generates a new request code
         /// </summary>
-        static int NewActivityRequestCode
+        static int NewRequestCode
         {
             get
             {
-                var requestId = RequestId++;
+                var requestId = Interlocked.Increment(ref RequestId);
                 if (RequestId >= int.MaxValue)
                     RequestId = 0;
 
@@ -48,55 +49,105 @@ namespace MuggPet.Activity
             }
         }
 
-        private class ActvityRequestData
+        public override void OnRequestPermissionsResult(int requestCode, string[] permissions, [GeneratedEnum] Permission[] grantResults)
+        {
+            if (resultStates.ContainsKey(requestCode))
+            {
+                var perm = resultStates[requestCode] as PermissionRequestData;
+
+                //
+                perm.State = new PermissionGrantResultState()
+                {
+                    GrantResults = grantResults,
+                    Permissions = permissions
+                };
+
+                //  release
+                perm.Event.Set();
+            }
+
+            base.OnRequestPermissionsResult(requestCode, permissions, grantResults);
+        }
+
+        private abstract class RequestDataBase
         {
             public ManualResetEvent Event { get; set; }
+        }
 
+        private class ActivityRequestData : RequestDataBase
+        {
             public ActivityResultState State { get; set; }
+        }
+
+        private class PermissionRequestData : RequestDataBase
+        {
+            public PermissionGrantResultState State { get; set; }
         }
 
         /// <summary>
         /// Holds result states for various requests
         /// </summary>
-        private Dictionary<int, ActvityRequestData> resultStates = new Dictionary<int, ActvityRequestData>();
+        private Dictionary<int, RequestDataBase> resultStates = new Dictionary<int, RequestDataBase>();
 
-        private async Task<ActivityResultState> InternalStartActivityAsync(Action<int> onStartActivity)
+        private async Task<T> InternalBeginAsyncOperation<T>(Action<int> onBegin) where T : RequestDataBase
         {
-            int requestCode = NewActivityRequestCode;
+            int requestCode = NewRequestCode;
             ManualResetEvent hEvent = new ManualResetEvent(false);
 
-            resultStates[requestCode] = new ActvityRequestData()
-            {
-                Event = hEvent
-            };
+            //
+            var request = Activator.CreateInstance<T>();
+            request.Event = hEvent;
+            resultStates[requestCode] = request;
 
-            //  let android do the work
-            onStartActivity(requestCode);
+            //  
+            onBegin(requestCode);
 
             //  wait asynchronously
             await Task.Run(() => hEvent.WaitOne());
 
-            //  get state
-            ActivityResultState state = resultStates[requestCode].State;
+            //  
+            T state = (T)resultStates[requestCode];
+
             resultStates.Remove(requestCode);
 
             return state;
         }
 
-
-        public Task<ActivityResultState> StartActivityForResultAsync(Intent intent)
+        /// <summary>
+        /// Requests for permission asynchronously
+        /// </summary>
+        /// <param name="permissions">A collection of permissions to request</param>
+        public async Task<PermissionGrantResultState> RequestPermissionAsync(string[] permissions)
         {
-            return InternalStartActivityAsync((requestCode) => StartActivityForResult(intent, requestCode));
+            return (await InternalBeginAsyncOperation<PermissionRequestData>((requestCode) => RequestPermissions(permissions, requestCode))).State;
         }
 
-        public Task<ActivityResultState> StartActivityForResultAsync(Type activityType)
+        /// <summary>
+        /// Starts an activity for result asynchronously
+        /// </summary>
+        /// <param name="intent">The intent to start the activity</param>
+        public async Task<ActivityResultState> StartActivityForResultAsync(Intent intent)
         {
-            return InternalStartActivityAsync((requestCode) => StartActivityForResult(activityType, requestCode));
+            return (await InternalBeginAsyncOperation<ActivityRequestData>((requestCode) => StartActivityForResult(intent, requestCode))).State;
         }
 
-        public Task<ActivityResultState> StartActivityForResultAsync(Intent intent, Bundle options)
+        /// <summary>
+        /// Starts an activity for result asynchronously
+        /// </summary>
+        /// <param name="activityType">The type of the activity to start</param>
+        public async Task<ActivityResultState> StartActivityForResultAsync(Type activityType)
         {
-            return InternalStartActivityAsync((requestCode) => StartActivityForResult(intent, requestCode, options));
+            return (await InternalBeginAsyncOperation<ActivityRequestData>((requestCode) => StartActivityForResult(activityType, requestCode))).State;
+        }
+
+        /// <summary>
+        /// Starts an activity for result asynchronously
+        /// </summary>
+        /// <param name="intent">The intent to start the activity</param>
+        /// <param name="options">Extra options for the intent</param>
+        public async Task<ActivityResultState> StartActivityForResultAsync(Intent intent, Bundle options)
+        {
+            return (await InternalBeginAsyncOperation<ActivityRequestData>((requestCode) => StartActivityForResult(intent, requestCode, options))).State;
         }
 
         #endregion
@@ -106,7 +157,7 @@ namespace MuggPet.Activity
             if (resultStates.ContainsKey(requestCode))
             {
                 //  get frame
-                var frame = resultStates[requestCode];
+                var frame = resultStates[requestCode] as ActivityRequestData;
 
                 //  set state
                 frame.State = new ActivityResultState(resultCode, data);
@@ -188,7 +239,7 @@ namespace MuggPet.Activity
         private int menuResID = -1;
 
         //  The delay in milliseconds to apply before closing the activity
-        private int exitDelay;
+        private int exitAnimDuration;
 
         //  Determines whether the activity is exiting
         private bool _isExiting = false;
@@ -222,6 +273,11 @@ namespace MuggPet.Activity
             }
         }
 
+        /// <summary>
+        /// Shows the toast with give key group
+        /// </summary>
+        /// <param name="toast">The toast to show</param>
+        /// <param name="key">The key group for the toast</param>
         protected void ShowToast(Toast toast, string key)
         {
             ToastManager.ShowToast(key, toast);
@@ -273,18 +329,19 @@ namespace MuggPet.Activity
             return ShowProgress(GetString(titleMsgResId), GetString(msgResId), indeterminate);
         }
 
+
         /// <summary>
         /// Initializes a new activity with its layout and other functionality properties
         /// </summary>
         /// <param name="resLayoutID">The layout resource id for the activity. If set to -1, no content is loaded.</param>
-        /// <param name="exitDelay">The delay prior exiting activity</param>
+        /// <param name="exitAnimDuration">The delay prior exiting activity</param>
         /// <param name="closeInterval">The delay between double back presses that will prevent activity from exiting</param>
         /// <param name="menuResourceID">The menu resource id for the activity. If set to -1, no menu resouce is loaded</param>
         /// <param name="closeMethod">Determines how back bressed event is handled</param>
-        public AppActivityBase(int resLayoutID, int exitDelay = 320, int closeInterval = 2100, int menuResourceID = -1, CloseMethod closeMethod = CloseMethod.System)
+        public BaseActivity(int resLayoutID, int exitAnimDuration = 320, int closeInterval = 2100, int menuResourceID = -1, CloseMethod closeMethod = CloseMethod.System)
         {
             this.layoutID = resLayoutID;
-            this.exitDelay = exitDelay;
+            this.exitAnimDuration = exitAnimDuration;
             this.menuResID = menuResourceID;
 
             closeResetTimer = new System.Timers.Timer(closeInterval) { AutoReset = true };
@@ -299,7 +356,7 @@ namespace MuggPet.Activity
         /// <summary>
         /// Initializes a blank activity without any properties
         /// </summary>
-        public AppActivityBase()
+        public BaseActivity()
         {
 
         }
@@ -312,7 +369,7 @@ namespace MuggPet.Activity
             get { return closeRequested; }
         }
 
-        IBindingHandler bindingHandler;
+        private IBindingHandler bindingHandler;
 
         /// <summary>
         /// Gets the binding handler instance for this activity
@@ -338,7 +395,7 @@ namespace MuggPet.Activity
             }
         }
 
-        protected AppActivityBase(IntPtr javaReference, JniHandleOwnership transfer) : base(javaReference, transfer)
+        protected BaseActivity(IntPtr javaReference, JniHandleOwnership transfer) : base(javaReference, transfer)
         {
 
         }
@@ -348,33 +405,27 @@ namespace MuggPet.Activity
             //
             Window.AddFlags(WindowManagerFlags.DrawsSystemBarBackgrounds);
 
-            //  
-            if (savedInstanceState != null)
-                OnRestoreActivityState(savedInstanceState);
-
             //  let the base handle creation of activity
             base.OnCreate(savedInstanceState);
 
             //  set activity created
             _created = true;
 
-
             // bind views here
             if (layoutID != -1)
             {
                 //  
                 await OnBind();
-
-                //
-                OnHandleVisualStates();
-
-                //  Loaded 
-                OnLoaded();
-
-                //  Setup initial animations
-                OnSetupAnimations(AnimationMode.Enter);
             }
 
+            //  Define visual states
+            OnHandleVisualStates();
+
+            //  Handle loaded logic
+            OnLoaded();
+
+            //  Setup initial animations
+            OnSetupAnimations(AnimationMode.Enter);
         }
 
         private void OnHandleVisualStates()
@@ -391,7 +442,8 @@ namespace MuggPet.Activity
 
         protected virtual void OnDefineVisualStates()
         {
-           //   TODO: Override and define visual states for activity here
+            //   TODO: Override and define visual states for activity here
+
         }
 
         protected virtual Task OnBind()
@@ -406,28 +458,22 @@ namespace MuggPet.Activity
             return Task.FromResult(0);
         }
 
-
-        /// <summary>
-        /// Handles restoring activity state
-        /// </summary>
-        /// <param name="savedInstanceState">The bundle containing persisted data</param>
-        protected virtual void OnRestoreActivityState(Bundle savedInstanceState)
-        {
-
-        }
-
         /// <summary>
         /// Determines whether the activity can be closed at the time of call
         /// </summary>
         /// <returns>True if can be closed else otherwise</returns>
         protected virtual bool OnCanClose()
         {
+            //  are we already in exiting state?
+            if (_isExiting)
+                return false;
+
             return true;
         }
 
         protected virtual void OnFinalizeClose()
         {
-            this.ExecuteDelayed(exitDelay, delegate
+            this.ExecuteDelayed(exitAnimDuration, delegate
             {
                 OverridePendingTransition(0, Resource.Animation.abc_slide_out_bottom);
                 Finish();
@@ -463,10 +509,6 @@ namespace MuggPet.Activity
                         }
                         else
                         {
-                            //  are we already in exiting state?
-                            if (_isExiting)
-                                return true;
-
                             //  put us in the exiting state
                             _isExiting = true;
                             closeResetTimer.Stop();
@@ -506,7 +548,7 @@ namespace MuggPet.Activity
         /// </summary>
         protected virtual void OnHomeButtonPressed()
         {
-            Finish();
+
         }
 
         /// <summary>
@@ -514,27 +556,30 @@ namespace MuggPet.Activity
         /// </summary>
         /// <param name="command">The command to bind</param>
         /// <param name="targetView">The target view</param>
-        public void BindCommand(ICommand command , View targetView)
+        /// <param name="parameter">An optional parameter for the command</param>
+        public void BindCommand(ICommand command, View targetView, object parameter = null)
         {
-            BindingHandler.BindCommandDirect(this, command, targetView, true);
+            BindingHandler.BindCommandDirect(this, command, targetView, parameter, true);
         }
-
 
         /// <summary>
         /// Binds a command directly to the specified view
         /// </summary>
         /// <param name="command">The command to bind</param>
-        /// <param name="targetView">The target view id</param>
-        public void BindCommand(ICommand command, int viewID)
+        /// <param name="viewID">The target view id</param>
+        /// <param name="parameter">An optional parameter for the command</param>
+        public void BindCommand(ICommand command, int viewID, object parameter = null)
         {
-            BindCommand(command, FindViewById(viewID));
+            BindCommand(command, FindViewById(viewID), parameter);
         }
 
+        /// <summary>
+        /// Dispatches the selected menu item id
+        /// </summary>
+        /// <param name="itemID">The id of the selected menu item</param>
         public bool DispatchSelected(int itemID)
         {
-            //
             bool executed = false;
-
             foreach (var member in GetType().GetMembers(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic).Where(x => x.MemberType == MemberTypes.Field || x.MemberType == MemberTypes.Property || x.MemberType == MemberTypes.Method))
             {
                 var menuAction = member.GetCustomAttribute<MenuActionAttribute>();
@@ -544,13 +589,13 @@ namespace MuggPet.Activity
                 if (member.MemberType == MemberTypes.Method)
                 {
                     var mInfo = ((MethodInfo)member);
-                    mInfo.Invoke(this, (mInfo.GetParameters().Length > 0) ? new object[] { itemID } : null);
+                    var properties = mInfo.GetParameters();
+                    mInfo.Invoke(this, (properties.Length > 0) ? new object[] { itemID } : null);
                     executed = true;
                 }
-                else if (member.MemberType == MemberTypes.Field)
+                else if (member.MemberType == MemberTypes.Field || member.MemberType == MemberTypes.Property)
                 {
-                    var fieldInfo = ((FieldInfo)member);
-                    var val = fieldInfo.GetValue(this);
+                    var val = member.GetMemberValue(this);
                     if (val is ICommand)
                     {
                         var cmd = (ICommand)val;
@@ -560,19 +605,7 @@ namespace MuggPet.Activity
                         executed = true;
                     }
                 }
-                else if (member.MemberType == MemberTypes.Property)
-                {
-                    var propertyInfo = ((PropertyInfo)member);
-                    var val = propertyInfo.GetValue(this);
-                    if (val is ICommand)
-                    {
-                        var cmd = (ICommand)val;
-                        if (cmd.CanExecute(itemID))
-                            cmd.Execute(itemID);
 
-                        executed = true;
-                    }
-                }
             }
 
             return executed;
@@ -589,7 +622,7 @@ namespace MuggPet.Activity
             bool dispatched = OnDispatchMenuItemSelected(item);
 
             //  Did we hit the home button
-            if (item.ItemId == Android.Resource.Id.Home)
+            if (item.ItemId.Equals(Android.Resource.Id.Home))
             {
                 OnHomeButtonPressed();
                 return true;
@@ -600,9 +633,8 @@ namespace MuggPet.Activity
         }
 
         /// <summary>
-        /// Plays animation
+        /// Setups enter and exit animations for the activity
         /// </summary>
-        /// <param name="mode">The mode of animations to play</param>
         protected virtual void OnSetupAnimations(AnimationMode mode)
         {
             //  TODO: Setup animation here
@@ -620,40 +652,19 @@ namespace MuggPet.Activity
             return base.OnCreateOptionsMenu(menu);
         }
 
-        protected Android.Support.V7.Widget.Toolbar CreateSupportToolbar(int layoutID, int toolbarId, ViewGroup parent = null, bool homeAsUpAndEnabled = false)
-        {
-            if (parent == null)
-            {
-                //  get the first view group from the view
-                parent = ((ViewGroup)FindViewById(Android.Resource.Id.Content))
-                    .FindChildViewOfType<ViewGroup>();
-            }
-
-            //
-            var toolbar = ((ViewGroup)LayoutInflater.Inflate(layoutID, null, false))
-                .FindViewById<Android.Support.V7.Widget.Toolbar>(toolbarId);
-
-            //
-            toolbar.LayoutParameters = new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MatchParent,
-                ViewGroup.LayoutParams.WrapContent);
-
-            //  move view to
-            parent.AddView(toolbar, 0);
-
-            //  
-            SetSupportActionBar(toolbar);
-
-            //
-            SupportActionBar.SetDisplayHomeAsUpEnabled(homeAsUpAndEnabled);
-
-            return toolbar;
-        }
-
+        /// <summary>
+        /// Sets the support toolbar for this activity
+        /// </summary>
+        /// <param name="homeAsUpAndEnabled">Shows or disables home button</param>
         protected Android.Support.V7.Widget.Toolbar AttachSupportToolbar(bool homeAsUpAndEnabled = false)
         {
             return AttachSupportToolbar(Resource.Id.support_toolbar, homeAsUpAndEnabled);
         }
 
+        /// <summary>
+        /// Sets the support toolbar for this activity
+        /// </summary>
+        /// <param name="homeAsUpAndEnabled">Shows or disables home button</param>
         protected Android.Support.V7.Widget.Toolbar AttachSupportToolbar(int toolbarId, bool homeAsUpAndEnabled = false)
         {
             var toolbar = FindViewById<Android.Support.V7.Widget.Toolbar>(toolbarId);
@@ -675,9 +686,8 @@ namespace MuggPet.Activity
 
         }
 
-
         /// <summary>
-        /// Navigate to the activity with the type specified
+        /// Navigates to the activity with the type specified
         /// </summary>
         public virtual void Navigate(Type activity, int delay = 0, bool popCurrent = false, Bundle bundleExtra = null, int enterAnim = 0, int exitAnim = 0)
         {
@@ -685,8 +695,14 @@ namespace MuggPet.Activity
         }
 
         /// <summary>
-        /// Navigate to the activity with the intent specified
+        /// Navigates to the activity with the intent specified
         /// </summary>
+        /// <param name="bundleExtra">Additional extras bundle for the intent</param>
+        /// <param name="delay">The override delay</param>
+        /// <param name="enterAnim">An optional enter transition animation for the new activity. This parameter is ignored if set to 0</param>
+        /// <param name="exitAnim">An optional exit transition animation for the current activity. This parameter is ignored if set to 0</param>
+        /// <param name="intent">The intent for the target activity</param>
+        /// <param name="popCurrent">If set to true, the current activity will be finished or closed before navigating to the new activity.</param>
         public virtual async void Navigate(Intent intent, int delay = 0, bool popCurrent = false, Bundle bundleExtra = null, int enterAnim = 0, int exitAnim = 0)
         {
             if (!_created)
@@ -699,26 +715,22 @@ namespace MuggPet.Activity
                 await Task.Delay(delay);
             }
 
+            //
             if (bundleExtra != null)
                 intent.PutExtras(bundleExtra);
+
+            //  Override transition
+            if (enterAnim != 0 || exitAnim != 0)
+                OverridePendingTransition(enterAnim, exitAnim);
 
             //
             if (popCurrent)
             {
-                if (enterAnim != 0 || exitAnim != 0)
-                    OverridePendingTransition(enterAnim, exitAnim);
-
                 Finish();
             }
-            else
-            {
-                if (enterAnim != 0 || exitAnim != 0)
-                    OverridePendingTransition(enterAnim, exitAnim);
-            }
 
-            //  start activity
+            //  Start activity
             StartActivity(intent);
-
         }
 
     }

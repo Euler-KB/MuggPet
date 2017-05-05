@@ -11,19 +11,28 @@ using Android.Views;
 using Android.Widget;
 using System.IO;
 using Android.Animation;
-using Betwixt;
+using MuggPet.Animation.Betwixt;
 
 namespace MuggPet.Animation
 {
+    /// <summary>
+    /// Implements a time interpolator with support for betwixt easing functions
+    /// </summary>
     public class BetwixtInterpolator : Java.Lang.Object, ITimeInterpolator
     {
-        //  The default is always quintic
+        /// <summary>
+        /// The default interpolator. Usually a quintic ease implementation is returned
+        /// </summary>
         public static readonly BetwixtInterpolator Default = Quintic;
 
-        //  Elastic easing mode
+        /// <summary>
+        /// A standard elastic ease interpolator
+        /// </summary>
         public static readonly BetwixtInterpolator Elastic = new BetwixtInterpolator(ElasticEase);
 
-        //  Quintic easing mode
+        /// <summary>
+        /// A standard quintic ease interpolator
+        /// </summary>
         public static readonly BetwixtInterpolator Quintic = new BetwixtInterpolator(Ease.Quint.Out);
 
         //  Precomputed elastic ease values (bouncy) from WPF (:-
@@ -41,17 +50,32 @@ namespace MuggPet.Animation
             0.997114658355217F, 0.999855548505417F, 1F
         };
 
+
+        /// <summary>
+        /// Eases the given percentage with an elastic function
+        /// </summary>
+        /// <param name="percent">Indicates how much to ease. Usually between 0 to 1</param>
+        /// <returns>The ease value</returns>
         public static float ElasticEase(float percent)
         {
             return EaseData[(int)(percent * (EaseData.Length - 1))];
         }
 
         EaseFunc easeFunc;
+
+        /// <summary>
+        /// Initializes a new interpolator with a callback for easing
+        /// </summary>
+        /// <param name="ease">Specifies the ease function to use for interpolation. Various betwixt easing functions can be used without any hassle</param>
         public BetwixtInterpolator(EaseFunc ease)
         {
             easeFunc = ease;
         }
 
+        /// <summary>
+        /// Returns the ease value for the given input
+        /// </summary>
+        /// <param name="input">The input value to ease. Usually betwenn 0 to 1</param>
         public float GetInterpolation(float input)
         {
             return easeFunc(input);

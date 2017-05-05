@@ -15,6 +15,9 @@ using System.Threading.Tasks;
 
 namespace MuggPet.Assets
 {
+    /// <summary>
+    /// Provides various extensions for fetching assets
+    /// </summary>
     public static class AssetsHelperExtensions
     {
         /// <summary>

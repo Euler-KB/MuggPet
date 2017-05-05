@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Linq.Expressions;
 
-namespace Betwixt
+namespace MuggPet.Animation.Betwixt
 {
     /// <summary>
     /// Generic math handlers for performing basic operations on unknown types

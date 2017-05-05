@@ -106,7 +106,7 @@ namespace MuggPet.Security
     }
 
     /// <summary>
-    /// A thread safe credentials storage
+    /// Implements a secure credentials storage
     /// </summary>
     public static class CredentialStore
     {
@@ -131,9 +131,6 @@ namespace MuggPet.Security
 
             public UserCredentials Credentials { get; set; }
         }
-
-        //  Synchronization object
-        static object syncObject = new object();
 
         static async Task<List<CredentialInfo>> InternalGetCredentials()
         {
@@ -168,7 +165,7 @@ namespace MuggPet.Security
                 string payload = JsonConvert.SerializeObject(_credentialsInfo);
                 var cipherBlock = _dataProtector.EncryptRaw(Encoding.UTF8.GetBytes(payload));
                 await Task.Run(() => _storeHandler.Write(cipherBlock));
-
+                return true;
             }
             catch
             {
@@ -191,7 +188,7 @@ namespace MuggPet.Security
         }
 
         /// <summary>
-        /// Clears all stored credentials
+        /// Clears all stored credentials. 
         /// </summary>
         public static async Task Reset()
         {
@@ -200,12 +197,16 @@ namespace MuggPet.Security
             if (_storeHandler.StoreExists())
             {
                 await Task.Run(() => _storeHandler.Destroy());
-                _credentialsInfo.Clear();
+
+                if (_credentialsInfo == null)
+                    _credentialsInfo = new List<CredentialInfo>();
+                else
+                    _credentialsInfo.Clear();
             }
         }
 
         /// <summary>
-        /// Destroys given credentials when the 
+        /// Destroys the associated credentials with the give key
         /// </summary>
         /// <param name="key">The key for the credentials</param>
         /// <returns>True if operation was successfull else otherwise</returns>

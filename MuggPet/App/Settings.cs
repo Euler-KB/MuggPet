@@ -17,6 +17,7 @@ using System.Runtime.CompilerServices;
 using Newtonsoft.Json;
 using MuggPet.Security;
 using MuggPet.App.Settings.Attributes;
+using System.Linq.Expressions;
 
 namespace MuggPet.App.Settings
 {
@@ -42,9 +43,15 @@ namespace MuggPet.App.Settings
     {
         public event PropertyChangedEventHandler PropertyChanged;
 
+        /// <summary>
+        /// Updates the supplied field to supplied value
+        /// </summary>
+        /// <param name="field">The field to update</param>
+        /// <param name="value">The new value for the field</param>
+        /// <param name="property">This property shouldn't be set explicitly.</param>
         protected void Set<T>(ref T field, T value, [CallerMemberName]string property = null)
         {
-            if (!field.Equals(value))
+            if (!Equals(field, value))
             {
                 field = value;
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(property));
@@ -55,8 +62,8 @@ namespace MuggPet.App.Settings
     /// <summary>
     /// Manages application settings to preferences
     /// </summary>
-    /// <typeparam name="TSettings">The setting class</typeparam>
-    public class SettingsManager<TSettings> where TSettings : INotifyPropertyChanged
+    /// <typeparam name="TSettings">The type of user setting class</typeparam>
+    public class SettingsManager<TSettings> where TSettings : INotifyPropertyChanged 
     {
         //  The preference manager in use
         private ISharedPreferences preferenceManager;
@@ -88,31 +95,98 @@ namespace MuggPet.App.Settings
         }
 
         /// <summary>
+        /// Resets the current settings to default
+        /// </summary>
+        public void Reset()
+        {
+            //  reset default
+            instance = Activator.CreateInstance<TSettings>();
+
+            //  set dirty
+            preferenceManager.Edit()
+                .Clear()
+                .Commit();
+
+            // 
+            _changesMap.Clear();
+            if (_settingsDirty)
+                _settingsDirty = false;
+        }
+
+        /// <summary>
         /// Initializes a new settings manager with required keys for data protection
         /// </summary>
         /// <param name="secretkey">The secret key used in protecting values</param>
         /// <param name="salt">The salt to use in conjunction with the secret key</param>
         /// <param name="handler">An optional handler for managing data protection. If null, a default handler will be used</param>
-        /// <param name="preferenceManager">The preference manager to use for persisting settings</param>
-        public SettingsManager(ISharedPreferences preferenceManager, byte[] secretkey, byte[] salt, IDataProtectorHandler handler = null) : this(preferenceManager)
+        /// <param name="preferenceManager">The preference manager to use for persisting settings. If null, the default preference manager is used</param>
+        public SettingsManager(byte[] secretkey, byte[] salt, ISharedPreferences preferenceManager = null, IDataProtectorHandler handler = null) : this(preferenceManager)
         {
             //  initialize data protector
             _dataProtector = new DataProtector(secretkey, salt, true, handler);
         }
 
         /// <summary>
-        /// Initializes a new settings manager with no protection
+        /// Marks all setting properties as dirty
         /// </summary>
-        /// <param name="preferenceManager">The preference manager to use for persisting settings</param>
-        public SettingsManager(ISharedPreferences preferenceManager)
+        public void Invalidate()
+        {
+            //  mark all dirty
+            foreach (var prop in typeof(TSettings).GetProperties(BindingFlags.Public | BindingFlags.Instance))
+                _changesMap.Add(prop.Name);
+
+            //
+            if (!_settingsDirty)
+                _settingsDirty = true;
+        }
+
+        /// <summary>
+        /// Marks the given setting property as dirty
+        /// </summary>
+        /// <param name="property">The name of the setting property</param>
+        public void Invalidate(string property)
+        {
+            if (typeof(TSettings).GetProperty(property, BindingFlags.Instance | BindingFlags.Public) != null)
+            {
+                _changesMap.Add(property);
+
+                if (!_settingsDirty)
+                    _settingsDirty = true;
+            }
+        }
+
+        /// <summary>
+        /// Marks a setting property specified with the expression as dirty
+        /// </summary>
+        /// <param name="expression">The setting property member access expression</param>
+        public void Invalidate<TResult>(Expression<Func<TSettings, TResult>> expression)
+        {
+            if (expression.Body.NodeType == ExpressionType.MemberAccess)
+            {
+                _changesMap.Add(((MemberExpression)expression.Body).Member.Name);
+
+                if (!_settingsDirty)
+                    _settingsDirty = true;
+            }
+            else
+            {
+                throw new Exception("Expression not support. Only member access expressions are supported!");
+            }
+        }
+
+        /// <summary>
+        /// Initializes a new settings manager with no protection enabled.
+        /// </summary>
+        /// <param name="preferenceManager">The preference manager to use for persisting settings. If null, the default preference manager is used</param>
+        public SettingsManager(ISharedPreferences preferenceManager = null)
         {
             //  register for application life cycle events
-            BaseApplication appInstance = BaseApplication.Current;
+            BaseApplication appInstance = BaseApplication.Instance;
             if (appInstance == null)
                 throw new Exception("Cannot use Settings Manager. Please ensure your application class derives from MuggPt.App.BaseApplication!");
 
             //  set the preference manager in use
-            this.preferenceManager = preferenceManager;
+            this.preferenceManager = preferenceManager ?? PreferenceManager.GetDefaultSharedPreferences(appInstance);
 
             //  automatically save changes when activity is not visible or stopped
             appInstance.ActivityStopped += (activity) =>
@@ -168,7 +242,9 @@ namespace MuggPet.App.Settings
         {
             if (!_isLoaded)
             {
+                _resistChanges = true;
                 InternalLoadSettings();
+                _resistChanges = false;
                 _isLoaded = true;
             }
         }
@@ -223,15 +299,14 @@ namespace MuggPet.App.Settings
                     return false;
 
                 //
-                var prefMgr = PreferenceManager.GetDefaultSharedPreferences(Application.Context);
-                var editor = prefMgr.Edit();
+                var editor = preferenceManager.Edit();
 
                 //
-                foreach (var prop in GetType().GetProperties(BindingFlags.Instance | BindingFlags.Public).Where(x => _changesMap.Contains(x.Name)))
-                    InternalPutValue(editor, prop, prop.GetValue(this));
+                foreach (var prop in typeof(TSettings).GetProperties(BindingFlags.Instance | BindingFlags.Public).Where(x => _changesMap.Contains(x.Name)))
+                    InternalPutValue(editor, prop, prop.GetValue(instance));
 
                 //  commit changes
-                editor.Commit();
+                bool commited = editor.Commit();
 
                 //  clear dirty
                 _settingsDirty = false;
@@ -251,15 +326,27 @@ namespace MuggPet.App.Settings
         {
             foreach (var prop in typeof(TSettings).GetProperties(BindingFlags.Instance | BindingFlags.Public))
             {
-                InternalUpdateProperty(preferenceManager, prop, instance);
+                try
+                {
+                    InternalUpdateProperty(preferenceManager, prop, instance);
+                }
+                catch (JsonException)
+                {
+                    //  prevent serialization exception from terminating load process
+                }
             }
         }
 
         #region Transfer
 
+        /// <summary>
+        /// Updates a property of user settings with corresponding preference value
+        /// </summary>
+        /// <param name="prefMgr">The preference manager in use</param>
+        /// <param name="prop">The property info for the property to update</param>
+        /// <param name="target">The target object</param>
         protected virtual bool InternalUpdateProperty(ISharedPreferences prefMgr, PropertyInfo prop, object target)
         {
-            //
             bool isProtected = prop.GetCustomAttribute<ProtectAttribute>()?.Enabled == true;
             object value = null;
             if (prop.PropertyType == typeof(bool))
@@ -282,13 +369,13 @@ namespace MuggPet.App.Settings
             else if (prop.PropertyType == typeof(string))
             {
                 value = prop.GetValue(target);
-                value = (value == null ? null : (prefMgr.Contains(prop.Name) ? DeserializeValue(prefMgr.GetString(prop.Name, string.Empty), isProtected) : value));
+                value = prefMgr.Contains(prop.Name) ? DeserializeValue(prefMgr.GetString(prop.Name, ""), isProtected) : value;
             }
-            else if (!prop.PropertyType.IsPrimitive)
+            else
             {
                 //  we have a custom data type (class)
                 value = prop.GetValue(target);
-                value = (value == null ? null : (prefMgr.Contains(prop.Name) ? JsonConvert.DeserializeObject(DeserializeValue(prefMgr.GetString(prop.Name, string.Empty), isProtected)) : value));
+                value = prefMgr.Contains(prop.Name) ? JsonConvert.DeserializeObject(DeserializeValue(prefMgr.GetString(prop.Name, ""), isProtected), prop.PropertyType) : value;
             }
 
             if (!Equals(prop.GetValue(target), value))
@@ -301,7 +388,7 @@ namespace MuggPet.App.Settings
         }
 
         /// <summary>
-        /// Serializes string values and protects it if necessary
+        /// Serializes string values and protects it if necessary.
         /// </summary>
         /// <param name="value">The string to protect or serialize</param>
         /// <param name="protect">True to protect the value else no protection is ensured</param>
@@ -330,6 +417,12 @@ namespace MuggPet.App.Settings
             return value;
         }
 
+        /// <summary>
+        /// Puts the value of a setting property to the preference editor supplied
+        /// </summary>
+        /// <param name="editor">The preference editor to store value</param>
+        /// <param name="prop">The property info for the property </param>
+        /// <param name="value">The value of the property</param>
         protected virtual void InternalPutValue(ISharedPreferencesEditor editor, PropertyInfo prop, object value)
         {
             bool isProtected = prop.GetCustomAttribute<ProtectAttribute>()?.Enabled == true;
@@ -346,10 +439,7 @@ namespace MuggPet.App.Settings
             else
             {
                 //  do we have a custom data type ??
-                if (!prop.PropertyType.IsPrimitive)
-                {
-                    editor.PutString(prop.Name, SerializeValue(JsonConvert.SerializeObject(value), isProtected));
-                }
+                editor.PutString(prop.Name, SerializeValue(JsonConvert.SerializeObject(value), isProtected));
             }
         }
 

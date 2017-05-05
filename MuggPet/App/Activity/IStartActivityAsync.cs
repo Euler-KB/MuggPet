@@ -3,7 +3,7 @@ using System.Threading.Tasks;
 using Android.Content;
 using Android.OS;
 
-namespace MuggPet.Activity
+namespace MuggPet.App.Activity
 {
     /// <summary>
     /// Represents the interface for an activity that can start other activities asynchronously

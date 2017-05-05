@@ -13,9 +13,11 @@ using System.Reflection;
 
 namespace MuggPet.Utils
 {
+    /// <summary>
+    /// Provides global extensions for various components
+    /// </summary>
     public static class Extensions
     {
-
         #region Dialogs
 
         /// <summary>
@@ -31,12 +33,12 @@ namespace MuggPet.Utils
         #region Reflection
 
         /// <summary>
-        /// Determines whether the specified type has the interface in the generic argument implemented
+        /// Determines whether the specified type implements or inherits the interface in the arguments supplied
         /// </summary>
         /// <typeparam name="T">The interface to be checked</typeparam>
         /// <param name="type">The type to check for the interface</param>
         /// <returns></returns>
-        public static bool HasInterface<T>(this Type type) 
+        public static bool HasInterface<T>(this Type type)
         {
             return type.GetInterface(typeof(T).Name) != null || type == typeof(T);
         }
@@ -63,14 +65,18 @@ namespace MuggPet.Utils
         /// Returns the return type for the specified member info
         /// </summary>
         /// <param name="memberInfo">The member info in context</param>
-        /// /// <param name="memberInfo">A reference to the object containing the member</param>
-        public static object GetMemberValue(this MemberInfo memberInfo , object source)
+        /// <param name="source">A reference to the object containing the member</param>
+        /// <param name="parameters">Parameters for invoking the member if its a method</param>
+        public static object GetMemberValue(this MemberInfo memberInfo, object source, params object[] parameters)
         {
             if (memberInfo is FieldInfo)
                 return ((FieldInfo)memberInfo).GetValue(source);
 
             if (memberInfo is PropertyInfo)
                 return ((PropertyInfo)memberInfo).GetValue(source);
+
+            if (memberInfo is MethodInfo)
+                return ((MethodInfo)memberInfo).Invoke(source, parameters);
 
             return null;
         }

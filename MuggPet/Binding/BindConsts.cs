@@ -12,15 +12,11 @@ using Android.Widget;
 
 namespace MuggPet.Binding
 {
-    /// <summary>
-    /// Represents an interface that supports binding
-    /// </summary>
-    public interface ISupportBinding
+    public static class BindConsts
     {
         /// <summary>
-        /// Gets the binding handler for the current object/interface
+        /// Specifies a bind to the root view
         /// </summary>
-        IBindingHandler BindingHandler { get; }
-
+        public const int RootViewId = -1;
     }
 }

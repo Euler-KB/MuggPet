@@ -11,7 +11,7 @@ using Android.Views;
 using Android.Widget;
 using ActionMode = Android.Support.V7.View.ActionMode;
 using AppActivity = Android.Support.V7.App.AppCompatActivity;
-using MuggPet.Activity;
+using MuggPet.App.Activity;
 
 namespace MuggPet.Utils
 {
@@ -80,7 +80,6 @@ namespace MuggPet.Utils
         {
             this.hostActivity = host;
         }
-
 
         /// <summary>
         /// Starts to show the action mode if only not already shown

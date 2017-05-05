@@ -13,13 +13,20 @@ using Android.Widget;
 namespace MuggPet.Binding
 {
     /// <summary>
-    /// Represents a binding exception
+    /// Represents an execption generated upon binding
     /// </summary>
     [Serializable]
     public class BindingException : Exception
     {
+        /// <summary>
+        /// Initializes a new empty binding exception
+        /// </summary>
         public BindingException() { }
 
+        /// <summary>
+        /// Initializes a new binding execption with a message for the exception
+        /// </summary>
+        /// <param name="message">The error message for the exception</param>
         public BindingException(string message) : base(message) { }
     }
 

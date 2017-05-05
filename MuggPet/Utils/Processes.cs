@@ -13,7 +13,7 @@ using Android.Widget;
 namespace MuggPet.Utils
 {
     /// <summary>
-    /// Supplies process helpers
+    /// Provides various methods for accessing your application process
     /// </summary>
     public static class Processes
     {

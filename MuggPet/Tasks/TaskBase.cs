@@ -10,7 +10,8 @@ using Android.Runtime;
 using Android.Views;
 using Android.Widget;
 using System.Threading.Tasks;
-using MuggPet.Activity;
+using MuggPet.App.Activity;
+using MuggPet.App;
 
 namespace MuggPet.Tasks
 {
@@ -25,11 +26,16 @@ namespace MuggPet.Tasks
         /// <summary>
         /// Gets the bound activity
         /// </summary>
-        protected IStartActivityAsync HostActivity => host;
+        protected IStartActivityAsync Host => host;
 
-        public TaskBase(IStartActivityAsync hostActivity)
+        public TaskBase(IStartActivityAsync host)
         {
-            this.host = hostActivity;
+            this.host = host;
+        }
+
+        public TaskBase()
+        {
+            this.host = BaseApplication.CurrentActivity as IStartActivityAsync;
         }
 
         /// <summary>

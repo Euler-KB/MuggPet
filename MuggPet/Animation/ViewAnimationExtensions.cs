@@ -9,8 +9,8 @@ using Android.OS;
 using Android.Runtime;
 using Android.Views;
 using Android.Widget;
-using Betwixt;
 using Android.Animation;
+using MuggPet.Animation.Betwixt;
 
 namespace MuggPet.Animation
 {
@@ -21,6 +21,14 @@ namespace MuggPet.Animation
     {
         private Action<Animator> onEnd, onCancel, onRepeat, onStart;
 
+        /// <summary>
+        /// Initializes a new animation listener with specified callback handlers.
+        /// Note: Only callbacks desired to be handled should be suplied
+        /// </summary>
+        /// <param name="startAction">The callback for animation start</param>
+        /// <param name="endAction">The callback for animation end</param>
+        /// <param name="cancelAction">The callback for animation cancel</param>
+        /// <param name="repeatAction">The callback for animation repeat</param>
         public AnimationListener(Action<Animator> startAction = null, Action<Animator> endAction = null, Action<Animator> cancelAction = null, Action<Animator> repeatAction = null)
         {
             this.onEnd = endAction;
@@ -55,7 +63,14 @@ namespace MuggPet.Animation
     /// </summary>
     public enum SlideInDirection
     {
+        /// <summary>
+        /// Slides in animation from the top.
+        /// </summary>
         Top,
+
+        /// <summary>
+        /// Slides in animation from the bottom. This makes offsets used in animation 
+        /// </summary>
         Bottom,
         Left,
         Right
@@ -66,28 +81,50 @@ namespace MuggPet.Animation
     /// </summary>
     public enum ScaleEffect
     {
+        /// <summary>
+        /// Causes an outward bounce scale effect
+        /// </summary>
         BounceOutwards,
+
+        /// <summary>
+        /// Causes an inward bound scale effect
+        /// </summary>
         BounceInwards
     }
 
+    /// <summary>
+    /// Provides predetermined animation constants for various view animations
+    /// </summary>
     public static class ViewAnimationConsts
     {
-        //  Very quick animation duration
+        /// <summary>
+        /// The duration for super fast animation playback
+        /// </summary>
         public const long SuperFastDuration = 100;
 
-        //  Fast animation duration
+        /// <summary>
+        /// The duration for fast animation playback
+        /// </summary>
         public const long FastDuration = 400;
-
-        //  Slow animation duration
+        
+        /// <summary>
+        /// The duration for slow animation playback
+        /// </summary>
         public const long SlowDuration = 600;
 
-        //  Value for opaque alpa
+        /// <summary>
+        /// The alpha value for opaque
+        /// </summary>
         public const float AlphaOpaque = 1;
 
-        //  Value for transparent alhpa
+        /// <summary>
+        /// The alpha value for transparent
+        /// </summary>
         public const float AlphaTransparent = 0;
 
-        //  Indicates no delay
+        /// <summary>
+        /// Indicates no delay
+        /// </summary>
         public const int NoDelay = 0;
 
         //  Bounce inward default initial scale value
@@ -96,7 +133,9 @@ namespace MuggPet.Animation
         //  Bounce outward default target scale
         public const float BounceOutwardScale = 1.8F;
 
-        //  Normal scale value 
+        /// <summary>
+        /// The standard scale value with no deviation
+        /// </summary>
         public const float ScaleNormal = 1.0F;
     }
 
@@ -156,8 +195,8 @@ namespace MuggPet.Animation
         /// <param name="view">The view to animate</param>
         /// <param name="fromXScale">The initial value for X scale</param>
         /// <param name="toXScale">The final value for X scale</param>
-        /// <param name="fromXScale">The initial value for Y scale</param>
-        /// <param name="toXScale">The final value for Y scale</param>
+        /// <param name="fromYScale">The initial value for Y scale</param>
+        /// <param name="toYScale">The final value for Y scale</param>
         /// <param name="duration">The duration of the scale animation</param>
         /// <param name="delay">The delay before animation</param>
         /// <param name="isReversed">Plays animation in reverse if true</param>

@@ -1,8 +1,7 @@
 ﻿using System;
+using MuggPet.Animation.Betwixt.Annotations;
 
-using Betwixt.Annotations;
-
-namespace Betwixt
+namespace MuggPet.Animation.Betwixt
 {
     // The implementations only specify an In or an Out (depending on which is easier to write)
     // And the rest of the set is created via Generic Ease Creation
@@ -14,7 +13,7 @@ namespace Betwixt
     {
         public static float In(float percent)
         {
-            return (float)Math.Pow(percent, 2);
+            return (float)System.Math.Pow(percent, 2);
         }
     }
 
@@ -25,7 +24,7 @@ namespace Betwixt
     {
         public static float In(float percent)
         {
-            return (float)Math.Pow(percent, 3);
+            return (float)System.Math.Pow(percent, 3);
         }
     }
 
@@ -36,7 +35,7 @@ namespace Betwixt
     {
         public static float In(float percent)
         {
-            return (float)Math.Pow(percent, 4);
+            return (float)System.Math.Pow(percent, 4);
         }
     }
 
@@ -47,7 +46,7 @@ namespace Betwixt
     {
         public static float In(float percent)
         {
-            return (float)Math.Pow(percent, 5);
+            return (float)System.Math.Pow(percent, 5);
         }
     }
 
@@ -58,7 +57,7 @@ namespace Betwixt
     {
         public static float Out(float percent)
         {
-            return (float)Math.Sin(percent * (Math.PI / 2));
+            return (float)System.Math.Sin(percent * (System.Math.PI / 2));
         }
     }
 
@@ -69,7 +68,7 @@ namespace Betwixt
     {
         public static float Out(float percent)
         {
-            return (float)Math.Pow(2, 10 * (percent - 1));
+            return (float)System.Math.Pow(2, 10 * (percent - 1));
         }
     }
 
@@ -80,7 +79,7 @@ namespace Betwixt
     {
         public static float Out(float percent)
         {
-            return (float)Math.Sqrt(1 - Math.Pow(percent - 1, 2));
+            return (float)System.Math.Sqrt(1 - System.Math.Pow(percent - 1, 2));
         }
     }
 
@@ -92,7 +91,7 @@ namespace Betwixt
         public static float In(float percent)
         {
             const float s = 1.70158f;
-            return (float)Math.Pow(percent, 2) * ((s + 1) * percent - s);
+            return (float)System.Math.Pow(percent, 2) * ((s + 1) * percent - s);
         }
     }
 
@@ -104,7 +103,7 @@ namespace Betwixt
     {
         public static float Out(float percent)
         {
-            return (float)(1 + Math.Pow(2, -10 * percent) * Math.Sin((percent - 0.075) * (2 * Math.PI) / 0.3));
+            return (float)(1 + System.Math.Pow(2, -10 * percent) * System.Math.Sin((percent - 0.075) * (2 * System.Math.PI) / 0.3));
         }
     }
 
@@ -121,23 +120,23 @@ namespace Betwixt
 
             if (percent < (1 / p))
             {
-                return (float)(s * Math.Pow(percent, 2));
+                return (float)(s * System.Math.Pow(percent, 2));
             }
 
             if (percent < (2 / p))
             {
                 percent -= (1.5f / p);
-                return (float)(s * Math.Pow(percent, 2) + .75);
+                return (float)(s * System.Math.Pow(percent, 2) + .75);
             }
 
             if (percent < (2.5f / p))
             {
                 percent -= (2.25f / p);
-                return (float)(s * Math.Pow(percent, 2) + .9375);
+                return (float)(s * System.Math.Pow(percent, 2) + .9375);
             }
 
             percent -= (2.625f / p);
-            return (float)(s * Math.Pow(percent, 2) + .984375);
+            return (float)(s * System.Math.Pow(percent, 2) + .984375);
         }
     }
 }

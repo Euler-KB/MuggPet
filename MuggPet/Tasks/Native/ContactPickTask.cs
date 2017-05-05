@@ -10,14 +10,16 @@ using Android.OS;
 using Android.Runtime;
 using Android.Views;
 using Android.Widget;
-using MuggPet.Activity;
 using Android.Provider;
+using MuggPet.App.Activity;
 
 namespace MuggPet.Tasks.Native
 {
     public class ContactPickTask : TaskBase<Android.Net.Uri>
     {
-        public ContactPickTask(IStartActivityAsync hostActivity) : base(hostActivity)
+        public ContactPickTask() { }
+
+        public ContactPickTask(IStartActivityAsync host) : base(host)
         {
 
         }

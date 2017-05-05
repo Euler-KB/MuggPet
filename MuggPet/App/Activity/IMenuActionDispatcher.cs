@@ -10,7 +10,7 @@ using Android.Runtime;
 using Android.Views;
 using Android.Widget;
 
-namespace MuggPet.Activity
+namespace MuggPet.App.Activity
 {
     /// <summary>
     /// Represents the interface for activities that support dispatching selected menu items to methods

@@ -14,9 +14,34 @@ using System.Collections.Specialized;
 using System.Reflection;
 using System.Collections;
 using System.ComponentModel;
+using Android.Util;
 
-namespace MuggPet.Utils.Adapter
+namespace MuggPet.Adapters
 {
+
+    /// <summary>
+    /// Chains mutliple properties to a major property. 
+    /// This enables changes on the source property to reflected on the linked properties
+    /// </summary>
+    [System.AttributeUsage(AttributeTargets.Class | AttributeTargets.Property, Inherited = false, AllowMultiple = false)]
+    public class PropertyLinkAttribute : Attribute
+    {
+        /// <summary>
+        /// The linked properties
+        /// </summary>
+        public HashSet<string> LinkedProperties { get; }
+
+        /// <summary>
+        /// Initializes a new property link
+        /// </summary>
+        /// <param name="property">The source property. Whenever this property changes, linked properties are automatically refreshed to keep the object in sync</param>
+        /// <param name="linkedProperties">A collection of linked properties to the source property. These properties will be refreshed when the source property changes</param>
+        public PropertyLinkAttribute(params string[] linkedProperties)
+        {
+            LinkedProperties = new HashSet<string>(linkedProperties);
+        }
+    }
+
     /// <summary>
     /// Indicates a sorting order
     /// </summary>
@@ -33,27 +58,51 @@ namespace MuggPet.Utils.Adapter
         Descending
     }
 
+    /// <summary>
+    /// Represents a description for sorting an entity
+    /// </summary>
     public class SortDescription
     {
-        private MemberInfo _memberInfo;
-        internal MemberInfo MemberInfo => _memberInfo;
-
-        internal void UpdateMemberInfo(Type source)
-        {
-            _memberInfo = source.GetMember(Property).FirstOrDefault(x => x.MemberType == MemberTypes.Field || x.MemberType == MemberTypes.Property);
-        }
-
         internal object GetPropertyValue(object source)
         {
-            switch (_memberInfo.MemberType)
+            var member = source.GetType().GetMember(Property).FirstOrDefault(x => x.MemberType == MemberTypes.Field || x.MemberType == MemberTypes.Property);
+            if (member != null)
             {
-                case MemberTypes.Field:
-                    return ((FieldInfo)_memberInfo).GetValue(source);
-                case MemberTypes.Property:
-                    return ((PropertyInfo)_memberInfo).GetValue(source);
+                switch (member.MemberType)
+                {
+                    case MemberTypes.Field:
+                        return ((FieldInfo)member).GetValue(source);
+                    case MemberTypes.Property:
+                        return ((PropertyInfo)member).GetValue(source);
+                }
             }
-
             return null;
+        }
+
+        /// <summary>
+        /// Initializes a new sort description
+        /// </summary>
+        public SortDescription() { }
+
+        /// <summary>
+        /// Initializes a new sort description with the specified property in ascending mode
+        /// </summary>
+        /// <param name="property">The sort property</param>
+        public SortDescription(string property)
+        {
+            Property = property;
+        }
+
+
+        /// <summary>
+        /// Initializes a new sort description with the specified sort property and ordering mode
+        /// </summary>
+        /// <param name="property">The sort property</param>
+        /// <param name="mode">Indicates the order for sorting the given property</param>
+        public SortDescription(string property, SortOrder mode)
+        {
+            Property = property;
+            Mode = mode;
         }
 
         /// <summary>
@@ -62,7 +111,7 @@ namespace MuggPet.Utils.Adapter
         public string Property { get; set; }
 
         /// <summary>
-        /// The mode of sorting items
+        /// The order of sort
         /// </summary>
         public SortOrder Mode { get; set; }
     }
@@ -73,6 +122,20 @@ namespace MuggPet.Utils.Adapter
     /// <typeparam name="T">The entity model type</typeparam>
     public class GenericAdapter<T> : BaseAdapter<T>, ISupportBinding
     {
+        /// <summary>
+        /// A delegate for determining whether loaded view can be reused 
+        /// </summary>
+        /// <param name="currentItem">The item that wishes to resuse the view</param>
+        /// <param name="convertView">The view to reuse</param>
+        /// <param name="orginalItem">An item that was last associated to the view (convertView)</param>
+        /// <returns>True to reuse the convertView else discarded and reloaded</returns>
+        public delegate bool ReuseViewDelegate(T currentItem, View convertView, T orginalItem);
+
+        /// <summary>
+        /// Called to determine whether loaded view can be reused
+        /// </summary>
+        public event ReuseViewDelegate CanReuseView;
+
         //  An object bind map
         private IDictionary<object, View> _objectBindMap = new Dictionary<object, View>();
 
@@ -108,7 +171,7 @@ namespace MuggPet.Utils.Adapter
                 cmpValue = cmpRight.CompareTo(cmpLeft);
 
             //
-            return desc.Mode == SortOrder.Ascending ? -cmpValue : cmpValue;
+            return desc.Mode == SortOrder.Ascending ? cmpValue : -cmpValue;
         }
 
         /// <summary>
@@ -132,16 +195,16 @@ namespace MuggPet.Utils.Adapter
                         if (!enableSorting)
                             enableSorting = true;
 
-                        //
-                        foreach (var desc in _sortDescriptions)
-                            desc.UpdateMemberInfo(typeof(T));
-
                         OnApplySortDescriptions();
                     }
                 }
             }
         }
 
+        /// <summary>
+        /// Called to apply sort descriptions.
+        /// It is the responsibility of this method to sort afterwards
+        /// </summary>
         protected virtual void OnApplySortDescriptions()
         {
             //  set comparer
@@ -243,6 +306,9 @@ namespace MuggPet.Utils.Adapter
 
         private Context context;
 
+        /// <summary>
+        /// Gets the context for inflating views and loading resources
+        /// </summary>
         public Context Context => context;
 
         private Func<int, View, ViewGroup, View> onGetView;
@@ -283,6 +349,9 @@ namespace MuggPet.Utils.Adapter
                         //  apply filtering if enabled
                         InternalFilter();
                     }
+
+                    //  notify changes
+                    NotifyDataSetChanged();
                 }
             }
         }
@@ -313,11 +382,17 @@ namespace MuggPet.Utils.Adapter
                         //  apply sorting if enabled
                         InternalSort();
                     }
+
+                    NotifyDataSetChanged();
                 }
             }
         }
 
-        //
+        /// <summary>
+        /// A delegate for filtering items within the adapter
+        /// </summary>
+        /// <param name="item">The item to be filtered</param>
+        /// <returns>True if passes filter else otherwise</returns>
         public delegate bool FilterDelegate(T item);
 
         //  The internal filter delegate
@@ -330,24 +405,27 @@ namespace MuggPet.Utils.Adapter
         {
             add
             {
-                //  auto enable filtering
-                if (_filter == null && !EnableFiltering)
-                    enableFiltering = true;
-
                 //
+                bool wasRegistered = _filter != null;
                 _filter += value;
-                InternalFilter();
+
+                //  auto enable filtering
+                if (!wasRegistered && !EnableFiltering)
+                    EnableFiltering = true;
             }
 
             remove
             {
+                //  remove callback
                 _filter -= value;
-                InternalFilter();
+
+                //
+                Refresh();
             }
         }
 
         //  The sorting comparer
-        private Comparer<T> _sortComparer = Comparer<T>.Default;
+        private Comparer<T> _sortComparer;
 
         /// <summary>
         /// Enables live sorting on the adapter
@@ -361,17 +439,20 @@ namespace MuggPet.Utils.Adapter
                 {
                     //
                     if (_sortDescriptions != null)
-                    {
                         throw new Exception("Cannot set comaparer whiles sort descriptions are active. Ensure sort descriptions are nullified before attempting to use this operation!");
-                    }
 
                     //  auto enable sorting
-                    if (_sortComparer == null && !EnableSorting && _sortComparer != null)
+                    if (_sortComparer == null && !EnableSorting && value != null)
                         enableSorting = true;
 
                     //
-                    _sortComparer = value ?? Comparer<T>.Default;
+                    _sortComparer = value;
+
+                    //
                     InternalSort();
+
+                    //
+                    NotifyDataSetChanged();
                 }
             }
         }
@@ -435,9 +516,8 @@ namespace MuggPet.Utils.Adapter
                         //  we prevent moving indices when sorting is enabled
                         if (!EnableSorting)
                         {
-                            var temp = items[e.NewStartingIndex];
-                            items[e.NewStartingIndex] = items[e.OldStartingIndex];
-                            items[e.OldStartingIndex] = temp;
+                            items.Remove((T)e.OldItems[0]);
+                            items.Insert(e.NewStartingIndex + (e.OldStartingIndex > e.NewStartingIndex ? -1 : 1), (T)e.NewItems[0]);
                         }
                     }
                     break;
@@ -455,13 +535,16 @@ namespace MuggPet.Utils.Adapter
                         for (int i = 0; i < e.OldItems.Count; i++)
                         {
                             //
-                            OnItemRemoved(items[i]);
+                            OnItemRemoved((T)e.OldItems[i]);
 
                             T item = (T)e.NewItems[i];
                             if (EnableFiltering && !InternalFilter(item))
-                                items.RemoveAt(i);
+                                items.Remove(item);
                             else
+                            {
+
                                 items[i] = item;
+                            }
                         }
 
                         InternalSort();
@@ -484,7 +567,7 @@ namespace MuggPet.Utils.Adapter
         /// Views loaded are automatically binded to corresponding items
         /// </summary>
         /// <param name="context">The context object. Used in inflating views from resource</param>
-        /// <param name="items">A collection of items within the adapter. If your items implement INotifyPropertyChanged, changes on the items are automatically synchronized withiin the adapter</param>
+        /// <param name="items">A collection of items within the adapter. If your items implement INotifyPropertyChanged, changes on the items are automatically synchronized within the adapter</param>
         /// <param name="getViewFunc">A callback to fetch the view for each item. Items are then automatically binded to loaded views</param>
         public GenericAdapter(Context context, IEnumerable<T> items, Func<int, View, ViewGroup, View> getViewFunc)
         {
@@ -510,7 +593,7 @@ namespace MuggPet.Utils.Adapter
         /// </summary>
         /// <param name="context">The context object. Used in inflating views from resource</param>
         /// <param name="itemLayoutResID">The layout for each item within the view</param>
-        /// <param name="onBind">A callback for specifying binding each item to items view. If null, will automatically bind the item to the view else you'll have to implement you own way of mapping items to views.</param>
+        /// <param name="onBind">A callback for binding each item to its view. If null, will automatically bind the item to the view else you'll have to implement you own way of mapping items to views.</param>
         public GenericAdapter(Context context, int itemLayoutResID, Action<View, T> onBind = null) : this(context, itemLayoutResID, null, onBind)
         {
 
@@ -521,9 +604,9 @@ namespace MuggPet.Utils.Adapter
         /// </summary>
         /// <param name="context">The context object. Used in inflating views from resource</param>
         /// <param name="itemLayoutResID">The layout for each item within the view</param>
-        /// /// <param name="items">A collection of items within the adapter. If your items implement INotifyPropertyChanged, changes on the items are automatically synchronized withiin the adapter</param>
-        /// <param name="onBind">A callback for specifying binding each item to items view. If null, will automatically bind the item to the view else you'll have to implement you own way of mapping items to views.</param>
-        public GenericAdapter(Context context, int itemLayoutResID, IEnumerable<T> items, Action<View, T> onBind = null) : this(context, (x) => itemLayoutResID, items, onBind)
+        /// /// <param name="items">A collection of items within the adapter. If your items implement INotifyPropertyChanged, changes on the items are automatically synchronized within the adapter</param>
+        /// <param name="onBind">A callback for binding each item to its view. If null, will automatically bind the item to the view else you'll have to implement you own way of mapping items to views.</param>
+        public GenericAdapter(Context context, int itemLayoutResID, IEnumerable<T> items, Action<View, T> onBind = null) : this(context, items, (x) => itemLayoutResID, onBind)
         {
 
         }
@@ -535,8 +618,8 @@ namespace MuggPet.Utils.Adapter
         /// </summary>
         /// <param name="context">The context object. Used in inflating views from resource</param>
         /// <param name="onGetItemLayout">A custom callback for determining the layout for an item</param>
-        /// <param name="onBind">A callback for specifying binding each item to items view. If null, will automatically bind the item to the view else you'll have to implement you own way of mapping items to views.</param>
-        public GenericAdapter(Context context, Func<T, int> onGetItemLayout, Action<View, T> onBind = null) : this(context, onGetItemLayout, null, onBind)
+        /// <param name="onBind">A callback for binding each item to its view. If null, will automatically bind the item to the view else you'll have to implement you own way of mapping items to views.</param>
+        public GenericAdapter(Context context, Func<T, int> onGetItemLayout, Action<View, T> onBind = null) : this(context, null, onGetItemLayout, onBind)
         {
 
         }
@@ -545,7 +628,7 @@ namespace MuggPet.Utils.Adapter
         /// Initializes a new adapter with specified items
         /// </summary>
         /// <param name="context">The context object for inflating views</param>
-        /// <param name="items">A collection of items within the adapter. If your items implement INotifyPropertyChanged, changes on the items are automatically synchronized withiin the adapter</param>
+        /// <param name="items">A collection of items within the adapter. If your items implement INotifyPropertyChanged, changes on the items are automatically synchronized within the adapter</param>
         public static GenericAdapter<string> Create(Context context, IEnumerable<string> items)
         {
             return new GenericAdapter<string>(context, Android.Resource.Layout.SimpleListItem1, items, (v, str) => v.FindViewById<TextView>(Android.Resource.Id.Text1).Text = str);
@@ -554,7 +637,7 @@ namespace MuggPet.Utils.Adapter
         /// <summary>
         /// Initializes a new adapter with items(string-array) from resouce
         /// </summary>
-        /// <param name="context">The context object for fetching resouces and inflating views</param>
+        /// <param name="context">The context object for fetching resources and inflating views</param>
         /// <param name="itemsResId">The id of the string array resource</param>
         public static GenericAdapter<string> Create(Context context, int itemsResId)
         {
@@ -566,21 +649,46 @@ namespace MuggPet.Utils.Adapter
         /// </summary>
         /// <param name="context">The context object. Used in inflating views from resource</param>
         /// <param name="onGetItemLayout">A custom callback for determining the layout for an item</param>
-        /// <param name="items">A collection of items within the adapter. If your items implement INotifyPropertyChanged, changes on the items are automatically synchronized withiin the adapter</param>
+        /// <param name="items">A collection of items within the adapter. If your items implement INotifyPropertyChanged, changes on the items are automatically synchronized within the adapter</param>
         /// <param name="onBind">A callback for specifying binding each item to items view. If null, will automatically bind the item to the view else you'll have to implement you own way of mapping items to views.</param>
-        public GenericAdapter(Context context, Func<T, int> onGetItemLayout, IEnumerable<T> items, Action<View, T> onBind = null)
+        public GenericAdapter(Context context, IEnumerable<T> items, Func<T, int> onGetItemLayout, Action<View, T> onBind = null)
         {
             this.context = context;
             Source = items;
             this.onGetView = (int pos, View cView, ViewGroup parent) =>
             {
                 var item = this.items[pos];
-                if (cView == null)
+                bool canReuse = true;
+                if (cView != null)
+                {
+                    //  find existing item that was bound to the convert view
+                    object originalItem = null;
+                    foreach (var mBind in _objectBindMap)
+                        if (mBind.Value.Equals(cView))
+                        {
+                            originalItem = mBind.Key;
+                            break;
+                        }
+
+                    if (CanReuseView != null)
+                        canReuse = CanReuseView(item, cView, (T)originalItem);
+
+                    //  was any item bound ?
+                    if (originalItem != null)
+                    {
+                        BindingHandler.Destroy(originalItem);
+                        _objectBindMap.Remove(originalItem);
+                    }
+                }
+
+                //
+                if (!canReuse || cView == null)
                     cView = LayoutInflater.FromContext(Context).Inflate(onGetItemLayout(item), parent, false);
 
                 if (onBind != null)
                 {
                     //  This is provided for types that do not support direct binding with the binding framework
+                    //  If it is the desire to supply a custom bind function, you can invoke OnBind on the adapter in the custom callback for explicit bindings 
                     onBind(cView, item);
                 }
                 else
@@ -609,6 +717,10 @@ namespace MuggPet.Utils.Adapter
             _objectBindMap[item] = view;
         }
 
+        /// <summary>
+        /// Called when an item is added
+        /// </summary>
+        /// <param name="item">The added item</param>
         protected virtual void OnItemAdded(T item)
         {
             var notif = item as INotifyPropertyChanged;
@@ -616,6 +728,10 @@ namespace MuggPet.Utils.Adapter
                 notif.PropertyChanged += OnItemPropertyChanged;
         }
 
+        /// <summary>
+        /// Called when an item is removed
+        /// </summary>
+        /// <param name="item">The removed item</param>
         protected virtual void OnItemRemoved(T item)
         {
             BindingHandler.Destroy(item);
@@ -627,7 +743,9 @@ namespace MuggPet.Utils.Adapter
                 notif.PropertyChanged -= OnItemPropertyChanged;
         }
 
-
+        /// <summary>
+        /// Called when items are reset
+        /// </summary>
         protected virtual void OnItemsReset()
         {
             BindingHandler.Reset();
@@ -691,22 +809,49 @@ namespace MuggPet.Utils.Adapter
             var member = type.GetMember(e.PropertyName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic).FirstOrDefault(x => x.MemberType == MemberTypes.Field || x.MemberType == MemberTypes.Property);
             if (member != null)
             {
-                if (member.GetCustomAttributes().OfType<IBindingAttribute>().Any())
+                var customAttributes = member.GetCustomAttributes();
+                if (customAttributes.OfType<IBindingAttribute>().Any())
                 {
+                    HashSet<string> linkedProperties = new HashSet<string>() { e.PropertyName };
+                    var linked = customAttributes.OfType<PropertyLinkAttribute>().FirstOrDefault();
+                    if (linked != null)
+                    {
+                        foreach (var prop in linked.LinkedProperties)
+                            linkedProperties.Add(prop);
+                    }
+
+                    //  get binded view
                     View bindedView;
                     if (_objectBindMap.TryGetValue(sender, out bindedView))
                     {
-                        BindingHandler.BindObjectToView(sender, member, bindedView, true);
+                        foreach (var prop in linkedProperties)
+                        {
+                            member = type.GetMember(prop, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic).FirstOrDefault(x => x.MemberType == MemberTypes.Property || x.MemberType == MemberTypes.Field);
+                            if (member != null)
+                                BindingHandler.BindObjectToView(sender, member, bindedView, true);
+                        }
                     }
+
                 }
             }
         }
 
+        /// <summary>
+        /// Gets a visible item with the specified position
+        /// </summary>
+        /// <param name="position">The index of the item</param>
         public override T this[int position] => items[position];
 
+        /// <summary>
+        /// Gets to the total number of visible items
+        /// </summary>
         public override int Count => items.Count;
 
         private IBindingHandler bindingHandler;
+
+        /// <summary>
+        /// Gets the binding handler for the adapter
+        /// </summary>
         public IBindingHandler BindingHandler
         {
             get
@@ -726,7 +871,7 @@ namespace MuggPet.Utils.Adapter
         {
             if (EnableSorting)
             {
-                items.Sort(_sortComparer);
+                items.Sort(_sortComparer ?? Comparer<T>.Default);
             }
         }
 

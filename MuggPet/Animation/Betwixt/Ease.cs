@@ -1,6 +1,6 @@
-using Betwixt.Annotations;
+using MuggPet.Animation.Betwixt.Annotations;
 
-namespace Betwixt
+namespace MuggPet.Animation.Betwixt
 {
     /// <summary>
     /// Interface that provides easy use of In, Out, and InOut easing that a standard ease "set" provides

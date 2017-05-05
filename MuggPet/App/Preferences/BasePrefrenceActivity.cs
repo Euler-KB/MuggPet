@@ -9,15 +9,15 @@ using Android.OS;
 using Android.Runtime;
 using Android.Views;
 using Android.Widget;
-using MuggPet.Activity;
 using Android.Preferences;
+using MuggPet.App.Activity;
 
 namespace MuggPet.Preferences
 {
     /// <summary>
     /// Represents the base preference activity
     /// </summary>
-    public abstract class BasePrefrenceActivity : AppActivityBase , ISharedPreferencesOnSharedPreferenceChangeListener
+    public abstract class BasePrefrenceActivity : BaseActivity , ISharedPreferencesOnSharedPreferenceChangeListener
     {
         public class InitializationInfo
         {

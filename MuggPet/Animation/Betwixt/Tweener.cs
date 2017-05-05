@@ -1,8 +1,8 @@
-using Betwixt.Annotations;
+using MuggPet.Animation.Betwixt.Annotations;
 
 using System;
 
-namespace Betwixt
+namespace MuggPet.Animation.Betwixt
 {
     /// <summary>
     /// Ease function that takes a percent and returns a scaled (eased) percent

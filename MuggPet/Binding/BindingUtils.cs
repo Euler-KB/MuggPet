@@ -10,9 +10,13 @@ using Android.Runtime;
 using Android.Views;
 using Android.Widget;
 using System.Reflection;
+using MuggPet.Utils;
 
 namespace MuggPet.Binding
 {
+    /// <summary>
+    /// Supplies useful binding utilities
+    /// </summary>
     internal static class BindingUtils
     {
         /// <summary>
@@ -21,7 +25,7 @@ namespace MuggPet.Binding
         static internal bool IsFormattablePrimitiveType(Type vType)
         {
             return vType.IsPrimitive || vType == typeof(DateTime) || vType == typeof(DateTimeOffset) ||
-                    vType == typeof(TimeSpan) || vType == typeof(string) || vType == typeof(decimal);
+                    vType == typeof(TimeSpan) || vType.HasInterface<IEnumerable<string>>() || vType == typeof(decimal);
         }
 
         /// <summary>
@@ -68,7 +72,7 @@ namespace MuggPet.Binding
 
             //
             var finalValue = propInfo.GetValue(source);
-            if (format != null && propInfo.PropertyType == typeof(string))
+            if (format != null && propInfo.PropertyType.HasInterface<IEnumerable<string>>())
             {
                 finalValue = UnformatPrimitive((string)finalValue, format);
             }
@@ -79,13 +83,17 @@ namespace MuggPet.Binding
 
         static internal void BindProperties(object source, string propertyName, string defaultProperty, object value, string format)
         {
-            var propInfo = source.GetType().GetProperty(propertyName ?? defaultProperty, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            string property = propertyName ?? defaultProperty;
+            if (string.IsNullOrEmpty(property))
+                throw new BindingException("Invalid or unspecified binding target or property!");
+
+            var propInfo = source.GetType().GetProperty(property, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
             if (propInfo == null)
-                throw new BindingException($"The requested property name '{propertyName ?? defaultProperty}' was not found upon binding");
+                throw new BindingException($"The requested property name '{property}' was not found upon binding");
 
             //
             object finalValue = value;
-            if (format != null && propInfo.PropertyType == typeof(string))
+            if (format != null && propInfo.PropertyType.HasInterface<IEnumerable<string>>())
             {
                 finalValue = FormatPrimitive(value, format);
             }
@@ -103,6 +111,7 @@ namespace MuggPet.Binding
 
         static internal void BindMethod(object source, string methodName, object value, string format)
         {
+            //
             var methodInfo = source.GetType().GetMethod(methodName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
             if (methodInfo == null)
                 throw new BindingException($"The requested method '{methodName}' was not found prior to binding");
@@ -114,8 +123,8 @@ namespace MuggPet.Binding
                 throw new BindingException("The specified method has no arguments!");
 
             //
-            var pType = pms[0].GetType();
-            if (format != null && pType == typeof(string) && format != null)
+            var pType = pms[0].ParameterType;
+            if (format != null && pType.HasInterface<IEnumerable<string>>() && format != null)
             {
                 var vType = value.GetType();
                 parameterValue = FormatPrimitive(value, format);
@@ -133,7 +142,11 @@ namespace MuggPet.Binding
 
         static internal void BindAuto(object source, string memberName, string defaultMember, object value, string format)
         {
-            var methods = source.GetType().GetMember(memberName ?? defaultMember, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            string member = memberName ?? defaultMember;
+            if (string.IsNullOrEmpty(member))
+                throw new BindingException("A binding property or target is required!");
+
+            var methods = source.GetType().GetMember(member, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
             if (methods != null)
             {
                 if (methods.Length > 1)
@@ -142,14 +155,16 @@ namespace MuggPet.Binding
                 //
                 switch (methods[0].MemberType)
                 {
-                    case MemberTypes.Method:
+                    case MemberTypes.Property:
                         BindProperties(source, memberName, defaultMember, value, format);
                         break;
-                    case MemberTypes.Property:
+                    case MemberTypes.Method:
                         BindMethod(source, memberName, value, format);
                         break;
                 }
             }
+            else
+                throw new BindingException($"Failed discovering member \"{member}\". No such member found!");
 
         }
 

@@ -10,7 +10,7 @@ using Android.Runtime;
 using Android.Views;
 using Android.Widget;
 
-namespace MuggPet.Activity
+namespace MuggPet.App.Activity
 {
     /// <summary>
     /// Represent the results from an activity that was started for result
@@ -27,6 +27,11 @@ namespace MuggPet.Activity
         /// </summary>
         public Intent Data { get; }
 
+        /// <summary>
+        /// Initializes a new result state with the return result code and associated data
+        /// </summary>
+        /// <param name="resultCode">The resturned result codee</param>
+        /// <param name="data">The data intent associated with the result</param>
         public ActivityResultState(Result resultCode, Intent data)
         {
             ResultCode = resultCode;

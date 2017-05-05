@@ -15,7 +15,7 @@ namespace MuggPet.Binding
     /// <summary>
     /// Represents a frame for an object binding
     /// </summary>
-    public class BindingFrame
+    internal class BindingFrame
     {
         /// <summary>
         /// Gets object to view bindings

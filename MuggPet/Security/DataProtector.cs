@@ -144,14 +144,14 @@ namespace MuggPet.Security
         /// <param name="secretKey">The secret key for encrypting data</param>
         /// <param name="salt">Additional salt for hashing secret key</param>
         /// <param name="adjustSalt">Modifies the salt</param>
+        /// <param name="handler">Represents an inner </param>
         public DataProtector(byte[] secretKey, byte[] salt, bool adjustSalt = false, IDataProtectorHandler handler = null)
         {
             //  assign protection handler
             _protectionHandler = handler ?? new DefaultHandler();
-
-            //
             Initialize(secretKey, salt, adjustSalt);
         }
+
 
         void Initialize(byte[] secretKey, byte[] salt, bool adjustSalt)
         {
@@ -165,31 +165,63 @@ namespace MuggPet.Security
                 binarySecretKey = hasher.ComputeHash(secretKey);
         }
 
+        /// <summary>
+        /// Protects the given binary data
+        /// </summary>
+        /// <param name="dataBytes">The data to undergo protection</param>
+        /// <returns>The protected blob</returns>
         public byte[] EncryptRaw(byte[] dataBytes)
         {
             return _protectionHandler.Protect(dataBytes, binarySecretKey);
         }
 
-        public string Encrypt(string raw)
+        /// <summary>
+        /// Protects the given payload with a UTF8 encoding
+        /// </summary>
+        /// <param name="payload">The payload to undergo protection</param>
+        /// <returns>The protected payload</returns>
+        public string Encrypt(string payload)
         {
-            return Encrypt(raw, Encoding.UTF8);
+            return Encrypt(payload, Encoding.UTF8);
         }
 
-        public string Encrypt(string raw, Encoding encoding)
+        /// <summary>
+        /// Protects the given payload with specified encoding
+        /// </summary>
+        /// <param name="payload">The payload to undergo protection</param>
+        /// <param name="encoding">The encoding for the payload</param>
+        /// <returns>The unprotected payload</returns>
+        public string Encrypt(string payload, Encoding encoding)
         {
-            return _protectionHandler.ConvertToString(EncryptRaw(encoding.GetBytes(raw)));
+            return _protectionHandler.ConvertToString(EncryptRaw(encoding.GetBytes(payload)));
         }
 
+        /// <summary>
+        /// Unprotects the given binary data
+        /// </summary>
+        /// <param name="dataBytes">The data to be unprotected</param>
+        /// <returns>The unprotected blob</returns>
         public byte[] DecryptRaw(byte[] blob)
         {
             return _protectionHandler.UnProtect(blob, binarySecretKey);
         }
 
+        /// <summary>
+        /// Unprotects the given payload with a UTF8 encoding
+        /// </summary>
+        /// <param name="payload">The payload to undergo unprotection</param>
+        /// <returns>The protected payload</returns>
         public string Decrypt(string payload)
         {
             return Decrypt(payload, Encoding.UTF8);
         }
 
+        /// <summary>
+        /// Unprotects the given payload with specified encoding
+        /// </summary>
+        /// <param name="payload">The payload to undergo unprotection</param>
+        /// <param name="encoding">The encoding for the payload</param>
+        /// <returns>The unprotected payload</returns>
         public string Decrypt(string payload, Encoding encoding)
         {
             return encoding.GetString(DecryptRaw(_protectionHandler.ConvertToBlob(payload)));
