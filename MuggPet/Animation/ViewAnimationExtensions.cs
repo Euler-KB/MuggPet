@@ -63,14 +63,7 @@ namespace MuggPet.Animation
     /// </summary>
     public enum SlideInDirection
     {
-        /// <summary>
-        /// Slides in animation from the top.
-        /// </summary>
         Top,
-
-        /// <summary>
-        /// Slides in animation from the bottom. This makes offsets used in animation 
-        /// </summary>
         Bottom,
         Left,
         Right

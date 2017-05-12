@@ -13,15 +13,17 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using Android.Views;
 using MuggPet.Commands;
-using MuggPet.Activity.Attributes;
-using MuggPet.Utils.Adapter;
 using System.Threading.Tasks;
 using Android.Graphics;
+using MuggPet.App.Activity;
+using MuggPet.App.Activity.Attributes;
+using MuggPet.Adapters;
+using MuggPet.Animation.Betwixt;
 
 namespace MuggTester
 {
     [Activity(Label = "Mugg-Tester", MainLauncher = false, Icon = "@drawable/icon", Theme = "@style/AppTheme")]
-    public class MainActivity : MuggPet.Activity.AppActivityBase
+    public class MainActivity : BaseActivity
     {
         public static string[] Colors = new string[]
         {
@@ -134,7 +136,7 @@ namespace MuggTester
             {
                 return generateCommand ?? (generateCommand = new RelayCommand((args) =>
                 {
-                    return MuggPet.Dialogs.CommonDialogs.ShowMessage(this, "Generate Command", "Yeah, you clicked it!");
+                    MuggPet.Dialogs.CommonDialogs.ShowMessage(this, "Generate Command", "Yeah, you clicked it!");
                 }));
             }
         }
@@ -190,6 +192,12 @@ namespace MuggTester
             //  create suppor toolbar here
             AttachSupportToolbar();
 
+            //
+            Tweener<float> myTweener = new Tweener<float>(0, 100, 4.5, MuggPet.Animation.Betwixt.Ease.Quint.Out);
+            myTweener.OnEnd += (s, e) =>
+            {
+
+            };
 
             //
             //var adapter = ((GenericAdapter<Car>)myList.Adapter);

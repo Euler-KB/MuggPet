@@ -26,14 +26,28 @@ namespace MuggPet.App.Activity.Attributes
     /// <summary>
     /// Invokes a menu item selection event on the adorned member
     /// </summary>
-    [AttributeUsage(AttributeTargets.Method | AttributeTargets.Property | AttributeTargets.Field, AllowMultiple = false, Inherited = false)]
+    [AttributeUsage(AttributeTargets.Method | AttributeTargets.Property | AttributeTargets.Field, AllowMultiple = true, Inherited = false)]
     public class MenuActionAttribute : Attribute, IMenuActionAttribute
     {
         public int ID { get; private set; }
 
+        /// <summary>
+        /// Initializes a new menu action with the specified menu item id
+        /// </summary>
+        /// <param name="menuItemId">The id of the menu item</param>
         public MenuActionAttribute(int menuItemId)
         {
             this.ID = menuItemId;
         }
+
+        /// <summary>
+        /// Initializes a new menu action with specified enum menu item
+        /// </summary>
+        /// <param name="enumValue">The enum value for that defines the menu item</param>
+        public MenuActionAttribute(object enumValue):this(Convert.ToInt32( enumValue) )
+        {
+
+        }
+
     }
 }

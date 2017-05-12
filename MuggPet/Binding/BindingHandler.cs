@@ -100,7 +100,8 @@ namespace MuggPet.Binding
         /// <param name="containerView">The container view for resolving views</param>
         /// <param name="member">The member info</param>
         /// <param name="supportViewContentBinding">True to fetch bindable attributes which have view content bindings enabled</param>
-        public IList<KeyValuePair<Attribute, View>> ProcessBindableAttributes(object obj, View containerView, MemberInfo member, bool supportViewContentBinding)
+        /// <param name="supportPropertyBinding">True to fetch property to view bindings</param>
+        public IList<KeyValuePair<Attribute, View>> ProcessBindableAttributes(object obj, View containerView, MemberInfo member, bool supportViewContentBinding, bool supportPropertyBinding)
         {
             //
             var appliedBindings = new List<KeyValuePair<Attribute, View>>();
@@ -124,6 +125,9 @@ namespace MuggPet.Binding
                 }
 
                 if (targetView == null)
+                    continue;
+
+                if (supportPropertyBinding && !bindAttrib.CanBindPropertyToView(targetView, member.GetReturnType(), member))
                     continue;
 
                 //
@@ -251,7 +255,7 @@ namespace MuggPet.Binding
             }
             else if ((!update && !existingBindings.Any()) ^ update)
             {
-                var bindings = ProcessBindableAttributes(obj, view, member, false);
+                var bindings = ProcessBindableAttributes(obj, view, member, false, true);
                 foreach (var vBind in bindings)
                 {
                     var bindState = new BindState()
@@ -304,7 +308,7 @@ namespace MuggPet.Binding
             }
             else if ((!update && !existingBindings.Any()) ^ update)
             {
-                var bindings = ProcessBindableAttributes(source, view, member, true);
+                var bindings = ProcessBindableAttributes(source, view, member, true, false);
                 foreach (var vBind in bindings)
                 {
                     BindState state = new BindState()

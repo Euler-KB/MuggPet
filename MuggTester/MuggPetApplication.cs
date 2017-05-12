@@ -16,8 +16,6 @@ namespace MuggTester
     [Application]
     public class MuggPetApplication : BaseApplication
     {
-        public static MuggPetApplication Instance { get; private set; }
-
         protected MuggPetApplication(IntPtr javaReference, JniHandleOwnership transfer) : base(javaReference, transfer)
         {
 
@@ -25,10 +23,6 @@ namespace MuggTester
 
         protected override void OnLoadComponents()
         {
-            //  set singleton instance
-            if (Instance == null)
-                Instance = this;
-
             //  
             base.OnLoadComponents();
 

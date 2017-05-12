@@ -87,6 +87,9 @@ namespace MuggPet.Binding
                     //  pass the object to bind as the parameter for the command
                     handler.BindCommand(target, member, rootView, target, false);
                 }
+
+                //  bind object to view
+                handler.BindObjectToView(target, member, rootView, false);
             }
         }
 

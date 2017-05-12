@@ -22,6 +22,10 @@ namespace MuggPet.App
 
         public void OnActivityCreated(Android.App.Activity activity, Bundle savedInstanceState)
         {
+            //  just in case
+            if (CurrentActivity == null)
+                CurrentActivity = activity;
+
             ActivityCreated?.Invoke(activity, savedInstanceState);
         }
 

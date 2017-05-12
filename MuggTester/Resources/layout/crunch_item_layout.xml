@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<android.support.v7.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    app:cardElevation="4dp"
+    app:contentPadding="20dp">
+
+
+    <LinearLayout
+        android:id="@+id/crunch_root_frame"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginLeft="10dp"
+        android:orientation="vertical">
+
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="10dp">
+
+            <TextView
+                android:id="@+id/lbHeader"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_vertical|left"
+                android:textColor="@android:color/black"
+                android:textSize="18sp"
+                tools:text="Title Here" />
+
+            <ImageButton
+                android:id="@+id/btnDelete"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="right|center_vertical"
+                android:background="@drawable/delete_btn_bg"
+                android:src="@android:drawable/ic_menu_delete" />
+
+        </FrameLayout>
+
+
+        <TextView
+            android:id="@+id/lbTip"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="right"
+            android:text="Please accept my request!"
+            android:textColor="#1944c3" />
+
+        <TextView
+            android:id="@+id/lbMessage"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="5dp"
+            android:textColor="#4b4b4b"
+            tools:text="Message goes here. I know it must be longer than i thought..." />
+
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_marginTop="5dp">
+
+            <TextView
+                android:id="@+id/lbDate"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="right"
+                android:textColor="@android:color/black"
+                tools:text="Date here" />
+
+            <TextView
+                android:id="@+id/lbState"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                tools:text="Accepted or Declined" />
+        </FrameLayout>
+
+        <SeekBar
+            android:id="@+id/seekRange"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp" />
+
+        <Button
+            android:id="@+id/btnProcessRequest"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="5dp"
+            android:text="Accept Request"
+            android:textAllCaps="false" />
+
+    </LinearLayout>
+
+</android.support.v7.widget.CardView>

@@ -105,6 +105,21 @@ namespace MuggPet.Security
 
     }
 
+    [Flags]
+    public enum StoreInitializationFlags
+    {
+        /// <summary>
+        /// Does nothing
+        /// </summary>
+        None,
+
+        /// <summary>
+        /// Resets the store on initialization failure. If this flag is enabled, initialization returns success after resetting
+        /// </summary>
+        ResetOnFail = 1,
+
+    }
+
     /// <summary>
     /// Implements a secure credentials storage
     /// </summary>
@@ -132,7 +147,7 @@ namespace MuggPet.Security
             public UserCredentials Credentials { get; set; }
         }
 
-        static async Task<List<CredentialInfo>> InternalGetCredentials()
+        static IList<CredentialInfo> GetCredentials()
         {
             if (_credentialsInfo == null)
             {
@@ -146,12 +161,16 @@ namespace MuggPet.Security
                     var rawContent = _storeHandler.Read();
                     var deciphered = _dataProtector.DecryptRaw(rawContent);
                     string payload = Encoding.UTF8.GetString(deciphered);
-                    _credentialsInfo = await Task.Run(() => JsonConvert.DeserializeObject<List<CredentialInfo>>(payload));
+                    _credentialsInfo = JsonConvert.DeserializeObject<List<CredentialInfo>>(payload);
                 }
             }
 
             return _credentialsInfo;
+        }
 
+        static Task<IList<CredentialInfo>> InternalGetCredentialsAsync()
+        {
+            return Task.Run(() => GetCredentials());
         }
 
         static async Task<bool> InternalSaveCredentials()
@@ -183,8 +202,8 @@ namespace MuggPet.Security
         {
             CheckInitialized();
 
-            var cStore = await InternalGetCredentials();
-            return cStore.Find(x => x.Key.Equals(key))?.Credentials;
+            var cStore = await InternalGetCredentialsAsync();
+            return cStore.FirstOrDefault(x => x.Key.Equals(key))?.Credentials;
         }
 
         /// <summary>
@@ -214,8 +233,8 @@ namespace MuggPet.Security
         {
             CheckInitialized();
 
-            var cStore = await InternalGetCredentials();
-            var instance = cStore.Find(x => x.Key.Equals(key));
+            var cStore = await InternalGetCredentialsAsync();
+            var instance = cStore.FirstOrDefault(x => x.Key.Equals(key));
             if (instance != null)
             {
                 bool removed = cStore.Remove(instance);
@@ -237,7 +256,7 @@ namespace MuggPet.Security
 
             //
             string genKey = _storeHandler.GenerateUserKey(credentials);
-            var cStore = await InternalGetCredentials();
+            var cStore = await InternalGetCredentialsAsync();
             cStore.Add(new CredentialInfo()
             {
                 Key = genKey,
@@ -290,23 +309,39 @@ namespace MuggPet.Security
         /// <param name="securityKey">The security key for encrypting the data</param>
         /// <param name="salt">The salt used in conjuction with the security key</param>
         /// <param name="storeHandler">The handler for handling protection requests. If null a default handler will be used.</param>
-        public static bool Initialize(byte[] securityKey, byte[] salt, ICredentialStoreHandler storeHandler)
+        /// <param name="flags">Additional flags that determine how store is initialized</param>
+        public static bool Initialize(byte[] securityKey, byte[] salt, ICredentialStoreHandler storeHandler, StoreInitializationFlags flags = 0)
         {
             if (!_isInitialized)
             {
+                //  initialize a new data protector
+                _dataProtector = new DataProtector(securityKey, salt, true);
+
+                //  assign the current store handler
+                _storeHandler = storeHandler ?? new Handlers.DefaultStoreHandler();
+
                 try
                 {
-                    //  initialize a new data protector
-                    _dataProtector = new DataProtector(securityKey, salt, true);
-
-                    //  assign the current store handler
-                    _storeHandler = storeHandler ?? new Handlers.DefaultStoreHandler();
+                    //  load credentials for first time 
+                    GetCredentials();
                 }
                 catch
                 {
+                    if (flags.HasFlag(StoreInitializationFlags.ResetOnFail) && _storeHandler != null)
+                    {
+                        //  reset store
+                        if (_storeHandler.StoreExists())
+                        {
+                            _storeHandler.Destroy();
+                        }
+
+                        goto Finalize;
+                    }
+
                     return false;
                 }
 
+Finalize:
                 _isInitialized = true;
             }
 
@@ -319,27 +354,10 @@ namespace MuggPet.Security
         /// <param name="securityKey">The security key for encrypting the data</param>
         /// <param name="salt">The salt used in conjuction with the security key</param>
         /// <param name="storagePath">The path for credentials storage</param>
-        public static bool Initialize(byte[] securityKey, byte[] salt, string storagePath)
+        /// <param name="flags">Additional flags that determine how store is initialized</param>
+        public static bool Initialize(byte[] securityKey, byte[] salt, string storagePath, StoreInitializationFlags flags = 0)
         {
-            if (!_isInitialized)
-            {
-                try
-                {
-                    //  initialize a new data protector
-                    _dataProtector = new DataProtector(securityKey, salt, true);
-
-                    //  assign the current store handler
-                    _storeHandler = new Handlers.DefaultStoreHandler(storagePath);
-                }
-                catch
-                {
-                    return false;
-                }
-
-                _isInitialized = true;
-            }
-
-            return true;
+            return Initialize(securityKey, salt, new Handlers.DefaultStoreHandler(storagePath), flags);
         }
 
     }

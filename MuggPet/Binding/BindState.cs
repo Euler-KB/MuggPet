@@ -168,7 +168,7 @@ namespace MuggPet.Binding
                 return false;
 
             var bindAttrib = ((IBindingAttribute)Attribute);
-            SetMemberValue(TargetMember, Target, bindAttrib.OnBindViewValueToProperty((View)Source, TargetMember.GetReturnType()));
+            SetMemberValue(TargetMember, Target, bindAttrib.OnBindViewContentToProperty((View)Source, TargetMember.GetReturnType()));
             return true;
         }
 

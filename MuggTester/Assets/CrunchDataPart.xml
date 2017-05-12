@@ -1,0 +1,67 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<Crunches>
+
+  <Crunch>
+    <Header>API Mock</Header>
+    <Message>A lovely weekend to get started with our outstanding mocks for the new Karole.Mac web api</Message>
+    <Date>2/12/06</Date>
+    <Accepted>True</Accepted>
+  </Crunch>
+
+  <Crunch>
+    <Header>Unity 3D</Header>
+    <Message>A powerful game engine with massive development support and ever growing community</Message>
+    <Date>5/1/2017</Date>
+    <Accepted>False</Accepted>
+  </Crunch>
+
+  <Crunch>
+    <Header>Music Bands</Header>
+    <Message>A soothener is the one which relaxes your spirit. A great band of musicians hit the masquerade square tonight</Message>
+    <Date>1/1/2012</Date>
+    <Accepted>True</Accepted>
+  </Crunch>
+
+  <Crunch>
+    <Header>Praises</Header>
+    <Message>It is to be noted that praise is my weapon you truly need it as a christian</Message>
+    <Date>1/1/2012</Date>
+    <Accepted>True</Accepted>
+  </Crunch>
+
+  <Crunch>
+    <Header>Handwritten Signatures</Header>
+    <Message>The adventure has brought us far to digitally sign and keep our signatures for permanent storage....Yaaah!</Message>
+    <Date>1/1/2012</Date>
+    <Accepted>False</Accepted>
+  </Crunch>
+
+  <Crunch>
+    <Header>God's Property</Header>
+    <Message>Kirk Franklin, a wonderous gospel musician sings his heart out in his upcoming album God's Property</Message>
+    <Date>5/5/2000</Date>
+    <Accepted>True</Accepted>
+  </Crunch>
+
+  <Crunch>
+    <Header>Android Development</Header>
+    <Message>Xamarin.Android has made the whole process of writing application for android platform much easier than thought.</Message>
+    <Date>7/1/2020</Date>
+    <Accepted>True</Accepted>
+  </Crunch>
+
+  <Crunch>
+    <Header>MuggPet.Xamarin.Android</Header>
+    <Message>This is the package that will blow the minds of many developers. It includes a powerful data binding framework with which utilizing to display this message to you!</Message>
+    <Date>3/3/1999</Date>
+    <Accepted>True</Accepted>
+  </Crunch>
+
+  <Crunch>
+    <Header>Manifest</Header>
+    <Message>Sarkodie, a well know local rapstar disses a crown rapper who calls him self GOD MC. Apuuuuuu!</Message>
+    <Date>8/8/2099</Date>
+    <Accepted>False</Accepted>
+  </Crunch>
+
+</Crunches>

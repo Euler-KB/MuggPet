@@ -60,6 +60,11 @@ namespace MuggPet.Binding
         bool CanBindViewContent { get; }
 
         /// <summary>
+        /// Determines whether support binding of properties to views
+        /// </summary>
+        bool CanBindPropertyToView(View view, Type propertyType, MemberInfo memberInfo);
+
+        /// <summary>
         /// Determines whether view attaching is supported on this attribute
         /// </summary>
         bool CanAttachView(View view, MemberInfo memberInfo, Type memberType);
@@ -74,7 +79,7 @@ namespace MuggPet.Binding
         /// Invoked when a view is binding to a property. The main purpose of this method is to return the value 
         /// from the view specified for binding
         /// </summary>
-        object OnBindViewValueToProperty(View view, Type propertyType);
+        object OnBindViewContentToProperty(View view, Type propertyType);
 
     }
 
@@ -124,9 +129,6 @@ namespace MuggPet.Binding
 
         public void OnBindPropertyToView(View view, object propertyValue, Type propertyType, MemberInfo memberInfo)
         {
-            if (propertyType.IsSubclassOf(typeof(View)))
-                return;
-
             if (view is TextView || view is EditText)
             {
                 BindingUtils.BindProperties(view, Target, "Text", propertyValue, StringFormat);
@@ -186,7 +188,7 @@ namespace MuggPet.Binding
             }
         }
 
-        public object OnBindViewValueToProperty(View view, Type propertyType)
+        public object OnBindViewContentToProperty(View view, Type propertyType)
         {
             Type viewType = view.GetType();
             if (propertyType.HasInterface<ICommand>())
@@ -215,6 +217,11 @@ namespace MuggPet.Binding
                 return Convert.ChangeType(value, propertyType);
 
             return null;
+        }
+
+        public bool CanBindPropertyToView(View view, Type propertyType, MemberInfo memberInfo)
+        {
+            return !propertyType.IsSubclassOf(typeof(View)) && !propertyType.HasInterface<ICommand>();
         }
     }
 
@@ -289,12 +296,12 @@ namespace MuggPet.Binding
         /// <summary>
         /// Gets the bound command. 
         /// </summary>
-        protected ICommand Command { get; private set; }
+        public ICommand Command { get; private set; }
 
         /// <summary>
         /// Gets the bound view
         /// </summary>
-        protected View View { get; private set; }
+        public View View { get; private set; }
 
         /// <summary>
         /// Gets the parameter for the command
@@ -305,7 +312,6 @@ namespace MuggPet.Binding
         /// Gets or sets the tag for this command
         /// </summary>
         public string Tag { get; set; }
-
 
         public BindCommand(int id)
         {
@@ -396,9 +402,14 @@ namespace MuggPet.Binding
             // TODO: Override and implement property binding
         }
 
-        public object OnBindViewValueToProperty(View view, Type propertyType)
+        public object OnBindViewContentToProperty(View view, Type propertyType)
         {
             throw new NotSupportedException();
+        }
+
+        public virtual bool CanBindPropertyToView(View view, Type propertyType, MemberInfo memberInfo)
+        {
+            return true;
         }
     }
 
@@ -589,7 +600,15 @@ namespace MuggPet.Binding
             {
                 if (ItemsResourceId != -1)
                 {
-                    propInfo.SetValue(view, HandleAdapterFunctionality(GenericAdapter<string>.Create(view.Context, FormatStringItems(view.Context.Resources.GetStringArray(ItemsResourceId), StringFormat)), memberInfo));
+                    GenericAdapter<string> adapter = null;
+                    if (ItemLayout != -1)
+                        adapter = GenericAdapter<string>.Create(view.Context, ItemLayout, FormatStringItems(view.Context.Resources.GetStringArray(ItemsResourceId), StringFormat));
+                    else
+                        adapter = GenericAdapter<string>.Create(view.Context, FormatStringItems(view.Context.Resources.GetStringArray(ItemsResourceId), StringFormat));
+
+                    propInfo.SetValue(view, HandleAdapterFunctionality(adapter, memberInfo));
+
+
                 }
                 else if (ItemsSource != null)
                 {
@@ -657,10 +676,15 @@ namespace MuggPet.Binding
             return adapter;
         }
 
-        public object OnBindViewValueToProperty(View view, Type propertyType)
+        public object OnBindViewContentToProperty(View view, Type propertyType)
         {
             //  Not supported in this context yet!
             throw new NotSupportedException();
+        }
+
+        public bool CanBindPropertyToView(View view, Type propertyType, MemberInfo memberInfo)
+        {
+            throw new NotImplementedException();
         }
     }
 
@@ -781,6 +805,15 @@ namespace MuggPet.Binding
         }
 
         /// <summary>
+        /// Determines whether property to view binding is supported.
+        /// The BindID attribute supports binding of all properties excluding Commands and Views
+        /// </summary>
+        public bool CanBindPropertyToView(View view, Type propertyType, MemberInfo memberInfo)
+        {
+            return !propertyType.IsSubclassOf(typeof(View)) && !propertyType.HasInterface<ICommand>();
+        }
+
+        /// <summary>
         /// Loads the resource object with the given id
         /// </summary>
         /// <param name="context">The context for fetching resources</param>
@@ -829,7 +862,7 @@ namespace MuggPet.Binding
             }
         }
 
-        public object OnBindViewValueToProperty(View view, Type propertyType)
+        public object OnBindViewContentToProperty(View view, Type propertyType)
         {
             throw new NotSupportedException();
         }

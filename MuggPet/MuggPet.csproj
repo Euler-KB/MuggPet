@@ -63,6 +63,7 @@
     <Compile Include="App\Activity\IMenuActionDispatcher.cs" />
     <Compile Include="App\Activity\IRequestPermissionAsync.cs" />
     <Compile Include="App\Activity\PermissionGrantResultState.cs" />
+    <Compile Include="App\BaseDialogFragment.cs" />
     <Compile Include="App\ReceiverBase.cs" />
     <Compile Include="Binding\BindConsts.cs" />
     <Compile Include="Utils\EnumMenuBuilder.cs" />

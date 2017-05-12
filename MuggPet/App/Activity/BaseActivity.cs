@@ -256,6 +256,8 @@ namespace MuggPet.App.Activity
         //  The mode of close for the activity
         private CloseMethod closeMethod;
 
+        #region Toast & Dialogs
+
         //  Handles sequential toast display
         private ToastManager toastManager;
 
@@ -313,9 +315,22 @@ namespace MuggPet.App.Activity
         /// <param name="title">The title of the dialog</param>
         /// <param name="message">The message of the dialog</param>
         /// <param name="indeterminate">True for indeterminate progress bar else otherwise</param>
-        protected IDisposable ShowProgress(string title, string message, bool indeterminate = true)
+        /// <param name="cancelable">True to enable Back key dismiss the dialog</param>
+        protected IDisposable ShowProgress(string title, string message, bool indeterminate = true, bool cancelable = false)
         {
-            return ProgressDialog.Show(this, title, message, indeterminate).Scope();
+            return ProgressDialog.Show(this, title, message, indeterminate, cancelable).Scope();
+        }
+
+        /// <summary>
+        /// Shows a progress dialog with no title and message
+        /// </summary>
+        /// <param name="title">The title of the dialog</param>
+        /// <param name="message">The message of the dialog</param>
+        /// <param name="indeterminate">True for indeterminate progress bar else otherwise</param>
+        /// <param name="cancelable">True to enable Back key dismiss the dialog</param>
+        protected IDisposable ShowProgress(string message, bool indeterminate = true, bool cancelable = false)
+        {
+            return ProgressDialog.Show(this, null, message, indeterminate, cancelable).Scope();
         }
 
         /// <summary>
@@ -324,10 +339,13 @@ namespace MuggPet.App.Activity
         /// <param name="titleMsgResId">The resource id of the message for the title of the progress dialog</param>
         /// <param name="msgResId">The resource id of the message for the content of the progress dialog</param>
         /// <param name="indeterminate">True for indeterminate progress bar else otherwise</param>
-        protected IDisposable ShowProgress(int titleMsgResId, int msgResId, bool indeterminate = true)
+        /// <param name="cancelable">True to enable Back key dismiss the dialog</param>
+        protected IDisposable ShowProgress(int titleMsgResId, int msgResId, bool indeterminate = true, bool cancelable = false)
         {
-            return ShowProgress(GetString(titleMsgResId), GetString(msgResId), indeterminate);
+            return ShowProgress(GetString(titleMsgResId), GetString(msgResId), indeterminate, cancelable);
         }
+
+        #endregion
 
 
         /// <summary>
@@ -336,13 +354,13 @@ namespace MuggPet.App.Activity
         /// <param name="resLayoutID">The layout resource id for the activity. If set to -1, no content is loaded.</param>
         /// <param name="exitAnimDuration">The delay prior exiting activity</param>
         /// <param name="closeInterval">The delay between double back presses that will prevent activity from exiting</param>
-        /// <param name="menuResourceID">The menu resource id for the activity. If set to -1, no menu resouce is loaded</param>
+        /// <param name="menu">The menu resource id for the activity. If set to -1, no menu resouce is loaded</param>
         /// <param name="closeMethod">Determines how back bressed event is handled</param>
-        public BaseActivity(int resLayoutID, int exitAnimDuration = 320, int closeInterval = 2100, int menuResourceID = -1, CloseMethod closeMethod = CloseMethod.System)
+        public BaseActivity(int resLayoutID, int exitAnimDuration = 320, int closeInterval = 2100, int menu = -1, CloseMethod closeMethod = CloseMethod.System)
         {
             this.layoutID = resLayoutID;
             this.exitAnimDuration = exitAnimDuration;
-            this.menuResID = menuResourceID;
+            this.menuResID = menu;
 
             closeResetTimer = new System.Timers.Timer(closeInterval) { AutoReset = true };
             this.closeMethod = closeMethod;
@@ -548,8 +566,9 @@ namespace MuggPet.App.Activity
         /// </summary>
         protected virtual void OnHomeButtonPressed()
         {
-
         }
+
+        #region Command Binding
 
         /// <summary>
         /// Binds a command directly to the specified view
@@ -573,6 +592,9 @@ namespace MuggPet.App.Activity
             BindCommand(command, FindViewById(viewID), parameter);
         }
 
+        #endregion
+
+
         /// <summary>
         /// Dispatches the selected menu item id
         /// </summary>
@@ -582,30 +604,31 @@ namespace MuggPet.App.Activity
             bool executed = false;
             foreach (var member in GetType().GetMembers(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic).Where(x => x.MemberType == MemberTypes.Field || x.MemberType == MemberTypes.Property || x.MemberType == MemberTypes.Method))
             {
-                var menuAction = member.GetCustomAttribute<MenuActionAttribute>();
-                if (menuAction == null || itemID != menuAction.ID)
-                    continue;
+                foreach (var menuAction in member.GetCustomAttributes<MenuActionAttribute>())
+                {
+                    if (menuAction == null || itemID != menuAction.ID)
+                        continue;
 
-                if (member.MemberType == MemberTypes.Method)
-                {
-                    var mInfo = ((MethodInfo)member);
-                    var properties = mInfo.GetParameters();
-                    mInfo.Invoke(this, (properties.Length > 0) ? new object[] { itemID } : null);
-                    executed = true;
-                }
-                else if (member.MemberType == MemberTypes.Field || member.MemberType == MemberTypes.Property)
-                {
-                    var val = member.GetMemberValue(this);
-                    if (val is ICommand)
+                    if (member.MemberType == MemberTypes.Method)
                     {
-                        var cmd = (ICommand)val;
-                        if (cmd.CanExecute(itemID))
-                            cmd.Execute(itemID);
-
+                        var mInfo = ((MethodInfo)member);
+                        var properties = mInfo.GetParameters();
+                        mInfo.Invoke(this, (properties.Length > 0) ? new object[] { itemID } : null);
                         executed = true;
                     }
-                }
+                    else if (member.MemberType == MemberTypes.Field || member.MemberType == MemberTypes.Property)
+                    {
+                        var val = member.GetMemberValue(this);
+                        if (val is ICommand)
+                        {
+                            var cmd = (ICommand)val;
+                            if (cmd.CanExecute(itemID))
+                                cmd.Execute(itemID);
 
+                            executed = true;
+                        }
+                    }
+                }
             }
 
             return executed;
@@ -647,6 +670,7 @@ namespace MuggPet.App.Activity
             if (menuResID != -1)
             {
                 MenuInflater.Inflate(menuResID, menu);
+                return true;
             }
 
             return base.OnCreateOptionsMenu(menu);

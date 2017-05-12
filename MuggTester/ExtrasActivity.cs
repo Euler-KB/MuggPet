@@ -16,13 +16,13 @@ using Java.Lang;
 using MuggPet.Commands;
 using MuggPet.App;
 using MuggPet.Tasks.Native;
-using MuggPet.Activity;
 using MuggPet.Utils;
+using MuggPet.App.Activity;
 
 namespace MuggTester
 {
     [Activity(Label = "Extras Activity", Theme = "@style/AppTheme", MainLauncher = false)]
-    public class ExtrasActivity : AppActivityBase
+    public class ExtrasActivity : BaseActivity
     {
         public interface ITabPage
         {

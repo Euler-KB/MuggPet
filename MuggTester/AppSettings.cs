@@ -11,6 +11,7 @@ using Android.Views;
 using Android.Widget;
 using MuggPet.App.Settings;
 using MuggPet.App.Settings.Attributes;
+using Android.Preferences;
 
 namespace MuggTester
 {
@@ -24,6 +25,15 @@ namespace MuggTester
             bool enableToasts = true;
             bool enableNotifications = false;
             bool autoReplyMessages = true;
+            string accountId;
+            CarState carState;
+
+            [Protect]
+            public CarState CurrentCarState
+            {
+                get { return carState; }
+                set { Set(ref carState, value); }
+            }
 
             public bool EnableToasts
             {
@@ -42,14 +52,24 @@ namespace MuggTester
                 get { return autoReplyMessages; }
                 set { Set(ref autoReplyMessages, value); }
             }
+
+            public string AccountId
+            {
+                get { return accountId; }
+                set { Set(ref accountId, value); }
+            }
+
         }
 
         static SettingsManager<DefaultSettings> settingsManager;
 
         static AppSettings()
         {
+            //
+            string key = "er3423fdfaDS~@234-Key",  salt = "-~+2X-salt";
+
             //  create a new settings manager
-            settingsManager = new SettingsManager<DefaultSettings>();
+            settingsManager = new SettingsManager<DefaultSettings>(Encoding.UTF8.GetBytes(key) , Encoding.UTF8.GetBytes(salt));
         }
 
         public static void Initialize()

@@ -629,9 +629,20 @@ namespace MuggPet.Adapters
         /// </summary>
         /// <param name="context">The context object for inflating views</param>
         /// <param name="items">A collection of items within the adapter. If your items implement INotifyPropertyChanged, changes on the items are automatically synchronized within the adapter</param>
+        /// <param name="layoutID">The layout for displaying each item</param>
+        public static GenericAdapter<string> Create(Context context, int layoutID, IEnumerable<string> items)
+        {
+            return new GenericAdapter<string>(context, layoutID, items, (v, str) => v.FindViewById<TextView>(Android.Resource.Id.Text1).Text = str);
+        }
+
+        /// <summary>
+        /// Initializes a new adapter with specified items
+        /// </summary>
+        /// <param name="context">The context object for inflating views</param>
+        /// <param name="items">A collection of items within the adapter. If your items implement INotifyPropertyChanged, changes on the items are automatically synchronized within the adapter</param>
         public static GenericAdapter<string> Create(Context context, IEnumerable<string> items)
         {
-            return new GenericAdapter<string>(context, Android.Resource.Layout.SimpleListItem1, items, (v, str) => v.FindViewById<TextView>(Android.Resource.Id.Text1).Text = str);
+            return Create(context, Android.Resource.Layout.SimpleListItem1, items);
         }
 
         /// <summary>

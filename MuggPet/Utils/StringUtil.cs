@@ -74,6 +74,9 @@ namespace MuggPet.Utils
 
         public static string FormatString(string str, StringFormatOptions option)
         {
+            if (option == 0)
+                return str;
+
             var cArray = str.ToArray();
             if (option.HasFlag(StringFormatOptions.CaseSeperation))
             {

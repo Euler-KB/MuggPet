@@ -18,6 +18,7 @@ using Newtonsoft.Json;
 using MuggPet.Security;
 using MuggPet.App.Settings.Attributes;
 using System.Linq.Expressions;
+using Android.Util;
 
 namespace MuggPet.App.Settings
 {
@@ -54,17 +55,46 @@ namespace MuggPet.App.Settings
             if (!Equals(field, value))
             {
                 field = value;
-                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(property));
+                OnPropertyChanged(property);
             }
         }
+
+        /// <summary>
+        /// Sends a property changed event
+        /// </summary>
+        /// <param name="property">The property that changed</param>
+        public void OnPropertyChanged(string property)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(property));
+        }
     }
+
+    public enum PropertySerializationAction
+    {
+        /// <summary>
+        /// Resets the setting property on failure
+        /// </summary>
+        Reset,
+
+        /// <summary>
+        /// Ignores the property on serailization failure
+        /// </summary>
+        Ignore
+    }
+
 
     /// <summary>
     /// Manages application settings to preferences
     /// </summary>
     /// <typeparam name="TSettings">The type of user setting class</typeparam>
-    public class SettingsManager<TSettings> where TSettings : INotifyPropertyChanged 
+    public class SettingsManager<TSettings> where TSettings : INotifyPropertyChanged
     {
+        /// <summary>
+        /// Determines how the settings manager should handle serialization errors.
+        /// Note: This action applies only to non-primitive data types
+        /// </summary>
+        public PropertySerializationAction SerializationAction { get; set; }
+
         //  The preference manager in use
         private ISharedPreferences preferenceManager;
 
@@ -120,10 +150,14 @@ namespace MuggPet.App.Settings
         /// <param name="salt">The salt to use in conjunction with the secret key</param>
         /// <param name="handler">An optional handler for managing data protection. If null, a default handler will be used</param>
         /// <param name="preferenceManager">The preference manager to use for persisting settings. If null, the default preference manager is used</param>
-        public SettingsManager(byte[] secretkey, byte[] salt, ISharedPreferences preferenceManager = null, IDataProtectorHandler handler = null) : this(preferenceManager)
+        /// <param name="serializeAction">Determines the action to undertake upon a serialization exception. This action only applies to non-primitive and string data types</param>
+        public SettingsManager(byte[] secretkey, byte[] salt, ISharedPreferences preferenceManager = null, IDataProtectorHandler handler = null, PropertySerializationAction serializeAction = PropertySerializationAction.Ignore) : this(preferenceManager)
         {
             //  initialize data protector
             _dataProtector = new DataProtector(secretkey, salt, true, handler);
+
+            //  assign serialize action
+            SerializationAction = serializeAction;
         }
 
         /// <summary>
@@ -314,7 +348,7 @@ namespace MuggPet.App.Settings
 
                 return true;
             }
-            catch
+            catch (Exception)
             {
                 //  failed to save settings (:-
             }
@@ -366,16 +400,39 @@ namespace MuggPet.App.Settings
             {
                 value = prefMgr.GetFloat(prop.Name, (float)prop.GetValue(target));
             }
-            else if (prop.PropertyType == typeof(string))
-            {
-                value = prop.GetValue(target);
-                value = prefMgr.Contains(prop.Name) ? DeserializeValue(prefMgr.GetString(prop.Name, ""), isProtected) : value;
-            }
             else
             {
-                //  we have a custom data type (class)
-                value = prop.GetValue(target);
-                value = prefMgr.Contains(prop.Name) ? JsonConvert.DeserializeObject(DeserializeValue(prefMgr.GetString(prop.Name, ""), isProtected), prop.PropertyType) : value;
+                try
+                {
+                    if (prop.PropertyType == typeof(string))
+                    {
+                        value = prop.GetValue(target);
+                        value = prefMgr.Contains(prop.Name) ? DeserializeValue(prefMgr.GetString(prop.Name, ""), isProtected) : value;
+                    }
+                    else
+                    {
+                        //  we have a custom data type (class)
+                        value = prop.GetValue(target);
+                        value = prefMgr.Contains(prop.Name) ? JsonConvert.DeserializeObject(DeserializeValue(prefMgr.GetString(prop.Name, ""), isProtected), prop.PropertyType) : value;
+                    }
+                }
+                catch(Exception)
+                {
+                    Log.Debug(GetType().Name, $"Failed serializing property: {prop.Name}");
+
+                    switch (SerializationAction)
+                    {
+                        case PropertySerializationAction.Ignore:
+                            break;
+                        case PropertySerializationAction.Reset:
+                            {
+                                prefMgr.Edit()
+                                       .Remove(prop.Name)
+                                       .Commit();
+                            }
+                            break;
+                    }
+                }
             }
 
             if (!Equals(prop.GetValue(target), value))
@@ -434,12 +491,31 @@ namespace MuggPet.App.Settings
                 editor.PutLong(prop.Name, (long)value);
             else if (prop.PropertyType == typeof(float))
                 editor.PutFloat(prop.Name, (float)value);
-            else if (prop.PropertyType == typeof(string))
-                editor.PutString(prop.Name, SerializeValue((string)value, isProtected));
             else
             {
-                //  do we have a custom data type ??
-                editor.PutString(prop.Name, SerializeValue(JsonConvert.SerializeObject(value), isProtected));
+                try
+                {
+                    if (prop.PropertyType == typeof(string))
+                        editor.PutString(prop.Name, SerializeValue((string)value, isProtected));
+                    else
+                    {
+                        //  do we have a custom data type ??
+                        editor.PutString(prop.Name, SerializeValue(JsonConvert.SerializeObject(value), isProtected));
+                    }
+                }
+                catch (Exception)
+                {
+                    Log.Debug(GetType().Name, $"Failed serializing property: {prop.Name}");
+
+                    switch (SerializationAction)
+                    {
+                        case PropertySerializationAction.Ignore:
+                            break;
+                        case PropertySerializationAction.Reset:
+                            editor.Remove(prop.Name);
+                            break;
+                    }
+                }
             }
         }
 
