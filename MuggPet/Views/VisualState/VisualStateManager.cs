@@ -11,6 +11,7 @@ using Android.Views;
 using Android.Widget;
 using System.Reflection;
 using System.Linq.Expressions;
+using Java.Lang;
 
 namespace MuggPet.Views.VisualState
 {
@@ -191,7 +192,7 @@ namespace MuggPet.Views.VisualState
         private VisualState MakeNewState(string name, IEnumerable<VisualState> existingStates = null)
         {
             if (visualStates.Any(x => x.Name.Equals(name)))
-                throw new Exception($"The state name '{name}' is already registered!");
+                throw new System.Exception($"The state name '{name}' is already registered!");
 
             VisualState state = null;
 
@@ -380,26 +381,29 @@ namespace MuggPet.Views.VisualState
         private class PropertyAnimation : IVisualStateAnimation
         {
             ViewPropertyAnimator _animator;
-
-            List<Android.Animation.Animator> animations = new List<Android.Animation.Animator>();
+            private bool isRunning;
             private Action onEnd;
+
             public PropertyAnimation(ViewPropertyAnimator animator, Action onEnd)
             {
-                _animator = animator;
                 this.onEnd = onEnd;
-                _animator.SetListener(new MuggPet.Animation.AnimationListener((a) => animations.Add(a),
-                    cancelAction: (a) => OnAnimationEnd(a),
-                    endAction: (a) => OnAnimationEnd(a)));
+                _animator = animator;
+
+                //  set start action
+                _animator.WithStartAction(new Runnable(() =>
+                {
+                    isRunning = true;
+                }));
+
+                //  set end action
+                _animator.WithEndAction(new Runnable(() =>
+                {
+                    isRunning = false;
+                    this.onEnd?.Invoke();
+                }));
             }
 
-            void OnAnimationEnd(Android.Animation.Animator animation)
-            {
-                animations.Remove(animation);
-                if (!IsActive)
-                    onEnd?.Invoke();
-            }
-
-            public bool IsActive => animations.Any(x => x.IsRunning);
+            public bool IsActive => isRunning;
 
             public void Start()
             {
@@ -692,8 +696,7 @@ namespace MuggPet.Views.VisualState
         /// <summary>
         /// Overrides the logic handler for state activation
         /// </summary>
-        /// <param name="onActivate"></param>
-        /// <returns></returns>
+        /// <param name="onActivate">The callback for defining activation logic</param>
         public VisualState OnActivate(Action<StateObjectDefinitionWrapper> onActivate)
         {
             StateObjectDefinitionWrapper wrapper = new StateObjectDefinitionWrapper(this);
@@ -810,7 +813,7 @@ namespace MuggPet.Views.VisualState
                     member = (expression.Body as MemberExpression).Member;
                     break;
                 default:
-                    throw new NotSupportedException("Unsupported expression supplied!");
+                    throw new NotSupportedException("Unsupported expression supplied. Only member access expressions are supported!");
             }
 
             //  we currently deal with properties.... might improve in future

@@ -68,7 +68,7 @@ namespace MuggPet.Binding
                 throw new ArgumentNullException("rootView", "The root view is used for resolving child views upon binding");
 
             if (target == null)
-                throw new ArgumentNullException("target", "The target object is required for updating attachments u");
+                throw new ArgumentNullException("target", "The target object is required for updating attachments");
 
             foreach (var member in GetMembers(target.GetType()))
             {

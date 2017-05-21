@@ -391,7 +391,6 @@ namespace MuggPet.App.Settings
             {
                 value = prefMgr.GetInt(prop.Name, (int)prop.GetValue(target));
             }
-
             else if (prop.PropertyType == typeof(long))
             {
                 value = prefMgr.GetLong(prop.Name, (long)prop.GetValue(target));

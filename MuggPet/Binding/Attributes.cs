@@ -159,13 +159,9 @@ namespace MuggPet.Binding
             else if (view is SearchView)
             {
                 if (Target == null)
-                {
                     ((SearchView)view).SetQuery((string)propertyValue, false);
-                }
                 else
-                {
                     BindingUtils.BindProperties(view, Target, "Query", propertyValue, StringFormat);
-                }
             }
             else if (view is ImageView)
             {
@@ -177,9 +173,7 @@ namespace MuggPet.Binding
                         BindingUtils.BindMethod(view, "SetImageBitmap", (Bitmap)propertyValue, null);
                 }
                 else
-                {
                     BindingUtils.BindAuto(view, Target, "SetImageBitmap", propertyValue, null);
-                }
             }
             else
             {
@@ -221,7 +215,10 @@ namespace MuggPet.Binding
 
         public bool CanBindPropertyToView(View view, Type propertyType, MemberInfo memberInfo)
         {
-            return !propertyType.IsSubclassOf(typeof(View)) && !propertyType.HasInterface<ICommand>();
+            if (propertyType.IsSubclassOf(typeof(View)) || propertyType.HasInterface<ICommand>() || propertyType == typeof(View))
+                return false;
+
+            return true;
         }
     }
 
@@ -377,7 +374,7 @@ namespace MuggPet.Binding
             {
                 OnUnBindView(View);
 
-                //  destroy references
+                //  nullify reference to command and view
                 Command = null;
                 View = null;
             }

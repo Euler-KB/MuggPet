@@ -21,6 +21,7 @@ namespace MuggPet.App.Activity
         /// Dispatches menu item selection event
         /// </summary>
         /// <param name="itemID">The id of the selected menu item</param>
-        bool DispatchSelected(int itemID);
+        /// <param name="useContextMenu">Determines whether to include context menu selection actions</param>
+        bool DispatchSelected(int itemID,bool useContextMenu);
     }
 }

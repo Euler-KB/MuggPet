@@ -47,17 +47,26 @@
     <Reference Include="System.Core" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Xml" />
+    <Reference Include="Xamarin.Android.Support.Animated.Vector.Drawable, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\..\Sabta\packages\Xamarin.Android.Support.Animated.Vector.Drawable.23.4.0\lib\MonoAndroid403\Xamarin.Android.Support.Animated.Vector.Drawable.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
     <Reference Include="Xamarin.Android.Support.v4, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\Xamarin.Android.Support.v4.22.2.1.0\lib\MonoAndroid403\Xamarin.Android.Support.v4.dll</HintPath>
+      <HintPath>..\..\Sabta\packages\Xamarin.Android.Support.v4.23.4.0\lib\MonoAndroid403\Xamarin.Android.Support.v4.dll</HintPath>
       <Private>True</Private>
     </Reference>
     <Reference Include="Xamarin.Android.Support.v7.AppCompat, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\Xamarin.Android.Support.v7.AppCompat.22.2.1.0\lib\MonoAndroid403\Xamarin.Android.Support.v7.AppCompat.dll</HintPath>
+      <HintPath>..\..\Sabta\packages\Xamarin.Android.Support.v7.AppCompat.23.4.0\lib\MonoAndroid403\Xamarin.Android.Support.v7.AppCompat.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="Xamarin.Android.Support.Vector.Drawable, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\..\Sabta\packages\Xamarin.Android.Support.Vector.Drawable.23.4.0\lib\MonoAndroid403\Xamarin.Android.Support.Vector.Drawable.dll</HintPath>
       <Private>True</Private>
     </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="App\Activity\ActivityResultState.cs" />
+    <Compile Include="App\Activity\Attributes\KeyActionAttribute.cs" />
     <Compile Include="App\Activity\Attributes\MenuActionAttribute.cs" />
     <Compile Include="App\Activity\BaseActivity.cs" />
     <Compile Include="App\Activity\IMenuActionDispatcher.cs" />
@@ -66,7 +75,10 @@
     <Compile Include="App\BaseDialogFragment.cs" />
     <Compile Include="App\ReceiverBase.cs" />
     <Compile Include="Binding\BindConsts.cs" />
+    <Compile Include="Binding\BindingResourceCache.cs" />
+    <Compile Include="Dialogs\DialogUtils.cs" />
     <Compile Include="Utils\EnumMenuBuilder.cs" />
+    <Compile Include="Utils\FontAssetsManager.cs" />
     <Compile Include="Utils\StringUtil.cs" />
     <Compile Include="Views\IVisualStateManager.cs" />
     <Compile Include="Views\VisualState\VisualStateExtensions.cs" />

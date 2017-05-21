@@ -30,6 +30,25 @@ namespace MuggPet.App.Activity
     /// </summary>
     public class BaseActivity : AppCompatActivity, IStartActivityAsync, ISupportBinding, IMenuActionDispatcher, IVisualStateManager, IRequestPermissionAsync
     {
+        #region Consts
+
+        //  The default interval between double back presses that will close the activity
+        const int DefaultCloseInterval = 2100;
+
+        //  Represents an invalid resource identifier
+        const int InvalidResourceId = -1;
+
+        //  The default exit animation duration
+        const int DefaultExitAnimDuration = 320;
+
+        //  The default toast key
+        const string DefaultToastId = "Default";
+
+        const string DefaultExitMessage = "Press back once again to quit!";
+
+        #endregion
+
+
         #region Activity Async 
 
         static int RequestId = 0x0;
@@ -97,7 +116,7 @@ namespace MuggPet.App.Activity
             //
             var request = Activator.CreateInstance<T>();
             request.Event = hEvent;
-            resultStates[requestCode] = request;
+            resultStates.Add(requestCode, request);
 
             //  
             onBegin(requestCode);
@@ -171,10 +190,7 @@ namespace MuggPet.App.Activity
             base.OnActivityResult(requestCode, resultCode, data);
         }
 
-        /// <summary>
-        /// The default toast key
-        /// </summary>
-        public const string DefaultToastId = "Default";
+
 
         //
         private string exitMessage;
@@ -233,13 +249,13 @@ namespace MuggPet.App.Activity
         }
 
         //  The resource id of the layout to be loaded
-        private int layoutID = -1;
+        private int layoutID = InvalidResourceId;
 
         //  The menu resource id
-        private int menuResID = -1;
+        private int menuResID = InvalidResourceId;
 
         //  The delay in milliseconds to apply before closing the activity
-        private int exitAnimDuration;
+        private int exitAnimDuration = DefaultExitAnimDuration;
 
         //  Determines whether the activity is exiting
         private bool _isExiting = false;
@@ -254,7 +270,7 @@ namespace MuggPet.App.Activity
         private System.Timers.Timer closeResetTimer;
 
         //  The mode of close for the activity
-        private CloseMethod closeMethod;
+        private CloseMethod closeMethod = CloseMethod.System;
 
         #region Toast & Dialogs
 
@@ -355,20 +371,16 @@ namespace MuggPet.App.Activity
         /// <param name="exitAnimDuration">The delay prior exiting activity</param>
         /// <param name="closeInterval">The delay between double back presses that will prevent activity from exiting</param>
         /// <param name="menu">The menu resource id for the activity. If set to -1, no menu resouce is loaded</param>
-        /// <param name="closeMethod">Determines how back bressed event is handled</param>
-        public BaseActivity(int resLayoutID, int exitAnimDuration = 320, int closeInterval = 2100, int menu = -1, CloseMethod closeMethod = CloseMethod.System)
+        /// <param name="closeMethod">Determines how back pressed event is handled</param>
+        public BaseActivity(int resLayoutID, int exitAnimDuration = DefaultExitAnimDuration, int closeInterval = DefaultCloseInterval, int menu = InvalidResourceId, CloseMethod closeMethod = CloseMethod.System)
         {
             this.layoutID = resLayoutID;
             this.exitAnimDuration = exitAnimDuration;
             this.menuResID = menu;
-
-            closeResetTimer = new System.Timers.Timer(closeInterval) { AutoReset = true };
             this.closeMethod = closeMethod;
-            closeResetTimer.Elapsed += (s, e) =>
-            {
-                if (closeRequested)
-                    closeRequested = false;
-            };
+
+            //
+            InitializeActivity(closeInterval);
         }
 
         /// <summary>
@@ -376,7 +388,17 @@ namespace MuggPet.App.Activity
         /// </summary>
         public BaseActivity()
         {
+            InitializeActivity(DefaultCloseInterval);
+        }
 
+        private void InitializeActivity(int closeInterval)
+        {
+            closeResetTimer = new System.Timers.Timer(closeInterval) { AutoReset = true };
+            closeResetTimer.Elapsed += (s, e) =>
+            {
+                if (closeRequested)
+                    closeRequested = false;
+            };
         }
 
         /// <summary>
@@ -418,6 +440,28 @@ namespace MuggPet.App.Activity
 
         }
 
+        /// <summary>
+        /// Gets the layout to inflate the activity
+        /// </summary>
+        protected virtual int LayoutId
+        {
+            get
+            {
+                return layoutID;
+            }
+        }
+
+        /// <summary>
+        /// Gets the menu resource for the activity
+        /// </summary>
+        protected virtual int MenuId
+        {
+            get
+            {
+                return menuResID;
+            }
+        }
+
         protected override async void OnCreate(Bundle savedInstanceState)
         {
             //
@@ -430,7 +474,7 @@ namespace MuggPet.App.Activity
             _created = true;
 
             // bind views here
-            if (layoutID != -1)
+            if (LayoutId != -1)
             {
                 //  
                 await OnBind();
@@ -451,11 +495,16 @@ namespace MuggPet.App.Activity
             //  begin state definition
             VisualState.BeginStateDefinition();
 
-            //  Define visual states
-            OnDefineVisualStates();
-
-            //  finalize state definition
-            VisualState.FinalizeStateDefinition();
+            try
+            {
+                //  Define visual states
+                OnDefineVisualStates();
+            }
+            finally
+            {
+                //  finalize state definition
+                VisualState.FinalizeStateDefinition();
+            }
         }
 
         protected virtual void OnDefineVisualStates()
@@ -467,7 +516,7 @@ namespace MuggPet.App.Activity
         protected virtual Task OnBind()
         {
             //  load content view
-            SetContentView(layoutID);
+            SetContentView(LayoutId);
 
             //  attach views
             this.AttachViews();
@@ -523,7 +572,7 @@ namespace MuggPet.App.Activity
                             closeResetTimer.Start();
 
                             //
-                            ShowToast(exitMessage ?? "Press back once again to quit application.", ToastLength.Short, "Misc");
+                            ShowToast(exitMessage ?? DefaultExitMessage , ToastLength.Short, "Misc");
                         }
                         else
                         {
@@ -534,7 +583,7 @@ namespace MuggPet.App.Activity
                             //  play exit animations
                             OnSetupAnimations(AnimationMode.Exit);
 
-                            //  
+                            //  sets up the delay to
                             OnFinalizeClose();
                         }
 
@@ -566,6 +615,8 @@ namespace MuggPet.App.Activity
         /// </summary>
         protected virtual void OnHomeButtonPressed()
         {
+            //  just finish activity
+            Finish();
         }
 
         #region Command Binding
@@ -599,14 +650,14 @@ namespace MuggPet.App.Activity
         /// Dispatches the selected menu item id
         /// </summary>
         /// <param name="itemID">The id of the selected menu item</param>
-        public bool DispatchSelected(int itemID)
+        public bool DispatchSelected(int itemID, bool useContextMenu)
         {
             bool executed = false;
-            foreach (var member in GetType().GetMembers(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic).Where(x => x.MemberType == MemberTypes.Field || x.MemberType == MemberTypes.Property || x.MemberType == MemberTypes.Method))
+            foreach (var member in GetType().GetMembers(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static).Where(x => x.MemberType == MemberTypes.Field || x.MemberType == MemberTypes.Property || x.MemberType == MemberTypes.Method))
             {
                 foreach (var menuAction in member.GetCustomAttributes<MenuActionAttribute>())
                 {
-                    if (menuAction == null || itemID != menuAction.ID)
+                    if (menuAction == null || itemID != menuAction.ID || (useContextMenu && !menuAction.UseContextMenu))
                         continue;
 
                     if (member.MemberType == MemberTypes.Method)
@@ -636,7 +687,7 @@ namespace MuggPet.App.Activity
 
         protected virtual bool OnDispatchMenuItemSelected(IMenuItem item)
         {
-            return DispatchSelected(item.ItemId);
+            return DispatchSelected(item.ItemId, false);
         }
 
         public override bool OnOptionsItemSelected(IMenuItem item)
@@ -655,6 +706,15 @@ namespace MuggPet.App.Activity
             return dispatched ? true : base.OnOptionsItemSelected(item);
         }
 
+        public override bool OnContextItemSelected(IMenuItem item)
+        {
+            //  Dispatch selected item
+            if (DispatchSelected(item.ItemId, true))
+                return true;
+
+            return base.OnContextItemSelected(item);
+        }
+
         /// <summary>
         /// Setups enter and exit animations for the activity
         /// </summary>
@@ -667,9 +727,9 @@ namespace MuggPet.App.Activity
         public override bool OnCreateOptionsMenu(IMenu menu)
         {
             //  load menu from resource
-            if (menuResID != -1)
+            if (MenuId != -1)
             {
-                MenuInflater.Inflate(menuResID, menu);
+                MenuInflater.Inflate(MenuId, menu);
                 return true;
             }
 

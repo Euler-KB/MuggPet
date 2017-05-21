@@ -59,7 +59,7 @@ namespace MuggPet.Utils
                 string process = CurrentProcessName;
                 foreach (var app in processes)
                 {
-                    if (app.Importance == Importance.Foreground && app.ProcessName == process)
+                    if (app.Importance == Importance.Foreground && app.ProcessName.Equals(process) )
                         return true;
                 }
 

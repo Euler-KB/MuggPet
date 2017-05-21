@@ -224,7 +224,7 @@ namespace MuggPet.Animation
         /// Animates a view with specified sliding effect
         /// </summary>
         /// <param name="view">The view to animate</param>
-        /// <param name="offset">The offset to translate. If direction if top or down, a Y translation animation is applied else if direction is left or right, an X translation animation is applied instead</param>
+        /// <param name="offset">The offset to translate. If direction is set to top or down, a Y translation animation is applied else if left or right direction is specified, an X translation animation is applied instead</param>
         /// <param name="direction">The direction of the entry</param>
         /// <param name="duration">The duration of the animation</param>
         /// <param name="delay">The delay before starting animation</param>

@@ -21,6 +21,11 @@ namespace MuggPet.App.Activity.Attributes
         /// The item id of the menu
         /// </summary>
         int ID { get; }
+
+        /// <summary>
+        /// Determines whether this action applies to context menu
+        /// </summary>
+        bool UseContextMenu { get; set; }
     }
 
     /// <summary>
@@ -30,6 +35,11 @@ namespace MuggPet.App.Activity.Attributes
     public class MenuActionAttribute : Attribute, IMenuActionAttribute
     {
         public int ID { get; private set; }
+
+        /// <summary>
+        /// Determines whether this action applies to context menu
+        /// </summary>
+        public bool UseContextMenu { get; set; } = true;
 
         /// <summary>
         /// Initializes a new menu action with the specified menu item id

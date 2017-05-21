@@ -38,18 +38,18 @@ namespace MuggPet.Utils
             }
         }
 
-        private int menuResID = -1;
+        //  
+        private int menu = -1;
 
-        private AppActivity hostActivity;
+        private AppActivity host;
 
         /// <summary>
         /// Gets the host activity
         /// </summary>
-        public AppActivity Host => hostActivity;
+        public AppActivity Host => host;
 
         /// The active action mode reference
         private ActionMode actionMode;
-
 
         /// <summary>
         /// Invoked when menu item is selected
@@ -68,8 +68,8 @@ namespace MuggPet.Utils
         /// <param name="menu">The resource id of the menu to load for the action mode</param>
         public SmartActionMode(AppActivity host, int menu)
         {
-            this.hostActivity = host;
-            this.menuResID = menu;
+            this.host = host;
+            this.menu = menu;
         }
 
         /// <summary>
@@ -78,7 +78,7 @@ namespace MuggPet.Utils
         /// <param name="host">The host activity for starting the action mode</param>
         public SmartActionMode(AppActivity host)
         {
-            this.hostActivity = host;
+            this.host = host;
         }
 
         /// <summary>
@@ -89,7 +89,7 @@ namespace MuggPet.Utils
         {
             if (!IsActive)
             {
-                actionMode = hostActivity.StartSupportActionMode(this);
+                actionMode = host.StartSupportActionMode(this);
                 return true;
             }
 
@@ -99,7 +99,6 @@ namespace MuggPet.Utils
         /// <summary>
         /// Finishes the action mode if already active
         /// </summary>
-        /// <returns>True if shown successfully else otherwise</returns>
         public bool Cancel()
         {
             if (IsActive && actionMode != null)
@@ -115,17 +114,17 @@ namespace MuggPet.Utils
         {
             MenuItemSelected?.Invoke(this, item);
 
-            if (hostActivity is IMenuActionDispatcher)
-                return ((IMenuActionDispatcher)hostActivity).DispatchSelected(item.ItemId);
+            if (host is IMenuActionDispatcher)
+                return ((IMenuActionDispatcher)host).DispatchSelected(item.ItemId, false);
 
             return true;
         }
 
         public bool OnCreateActionMode(ActionMode mode, IMenu menu)
         {
-            if (menuResID != -1)
+            if (this.menu != -1)
             {
-                hostActivity.MenuInflater.Inflate(menuResID, menu);
+                host.MenuInflater.Inflate(this.menu, menu);
             }
 
             IsActive = true;

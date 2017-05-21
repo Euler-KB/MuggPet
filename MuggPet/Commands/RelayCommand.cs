@@ -23,9 +23,15 @@ namespace MuggPet.Commands
         /// </summary>
         public event EventHandler CanExecuteChanged;
 
+        /// <summary>
+        /// Called to determine whether the command can be executed
+        /// </summary>
         private Func<object, bool> canExecute;
 
-        private Func<object, Task> execute;
+        /// <summary>
+        /// The execute method
+        /// </summary>
+        private Action<object> execute;
 
         /// <summary>
         /// Initializes a new relay command with an execute callback which runs on the caller thread and an optional callback for determining command's execution state
@@ -39,14 +45,7 @@ namespace MuggPet.Commands
 
             //
             this.canExecute = canExecute;
-            this.execute = (arg) =>
-            {
-                //  execute 
-                execute(arg);
-
-                //  return default result
-                return Task.FromResult(0);
-            };
+            this.execute = execute;
         }
 
         /// <summary>
@@ -65,9 +64,9 @@ namespace MuggPet.Commands
         /// <param name="parameter">An optional parameter for the command</param>
         public Task Execute(object parameter)
         {
-            return execute(parameter);
+            execute(parameter);
+            return Task.FromResult(0);
         }
-
 
         /// <summary>
         /// Notifies command's executable state has changed
