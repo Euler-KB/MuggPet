@@ -20,6 +20,17 @@ namespace MuggPet.Binding
     internal static class BindingUtils
     {
         /// <summary>
+        /// Finds a sub view within the root view
+        /// </summary>
+        static internal View FindView(View rootView,  int id)
+        {
+            if (id == BindConsts.RootViewId)
+                return rootView;
+
+            return rootView.FindViewById(id);
+        }
+
+        /// <summary>
         /// Determines whether the type is formattable and single line element
         /// </summary>
         static internal bool IsFormattablePrimitiveType(Type vType)

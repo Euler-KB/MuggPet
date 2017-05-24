@@ -78,7 +78,7 @@ namespace MuggPet.Binding
                     handler.BindResource(rootView.Context, target, member, false);
                 }
 
-                //  attach view
+                //  attach views
                 handler.AttachViewToProperty(rootView, target, member, flags, false);
 
                 //  bind commands

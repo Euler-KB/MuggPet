@@ -29,7 +29,6 @@ namespace MuggPet.App
 
         #endregion
 
-
         //  The id of the layout of the fragment
         private int layoutID = -1;
 

@@ -76,11 +76,17 @@
     <Compile Include="App\ReceiverBase.cs" />
     <Compile Include="Binding\BindConsts.cs" />
     <Compile Include="Binding\BindingResourceCache.cs" />
+    <Compile Include="Binding\BindProperty.cs" />
+    <Compile Include="Binding\Logging\BindingTrace.cs" />
+    <Compile Include="Binding\Sources\BindSourcePropertyManager.cs" />
+    <Compile Include="Binding\Sources\Views\ViewSourceProperties.cs" />
     <Compile Include="Dialogs\DialogUtils.cs" />
     <Compile Include="Utils\EnumMenuBuilder.cs" />
     <Compile Include="Utils\FontAssetsManager.cs" />
     <Compile Include="Utils\StringUtil.cs" />
     <Compile Include="Views\IVisualStateManager.cs" />
+    <Compile Include="Views\VisualState\IVisualStateDefinition.cs" />
+    <Compile Include="Views\VisualState\VisualStateException.cs" />
     <Compile Include="Views\VisualState\VisualStateExtensions.cs" />
     <Compile Include="Views\VisualState\VisualStateManager.cs" />
     <Compile Include="App\IDispatchLifecycleEvents.cs" />

@@ -12,6 +12,20 @@ using Android.Widget;
 
 namespace MuggPet.Binding
 {
+    [Flags]
+    public enum ResetOptionFlags
+    {
+        /// <summary>
+        /// Resets loaded resources
+        /// </summary>
+        Resources = 1,
+
+        /// <summary>
+        /// Resets view
+        /// </summary>
+        View = 2
+    }
+
     /// <summary>
     /// The base interface for resource cache manager for bindings
     /// </summary>
@@ -36,7 +50,13 @@ namespace MuggPet.Binding
         /// </summary>
         /// <param name="rootView">The root view to find the sub view from</param>
         /// <param name="subViewId">The id of the sub view</param>
-        View GetView(View rootView , int subViewId);
+        View GetView(View rootView, int subViewId);
+
+        /// <summary>
+        /// Gets a cached resource
+        /// </summary>
+        /// <param name="resourceId">The id of the resource</param>
+        object GetResource(int resourceId);
 
         /// <summary>
         /// Removes cache for the specified root view
@@ -56,5 +76,11 @@ namespace MuggPet.Binding
         /// </summary>
         /// <param name="resourceId">The id of the resource</param>
         void RemoveResource(int resourceId);
+
+
+        /// <summary>
+        /// Resets the cache
+        /// </summary>
+        void Reset(ResetOptionFlags flags = 0);
     }
 }

@@ -21,6 +21,11 @@ namespace MuggPet.App.Activity.Attributes
         public Keycode Key { get; }
 
         /// <summary>
+        /// Gets or sets the action for triggering the key action
+        /// </summary>
+        public KeyEventActions Action { get; set; } = KeyEventActions.Down;
+
+        /// <summary>
         /// Initializes a key pressed action invoker on 
         /// </summary>
         /// <param name="key">The action key</param>

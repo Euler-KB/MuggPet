@@ -28,7 +28,7 @@ namespace MuggPet.Utils
         public bool IsActive
         {
             get { return _isActive; }
-            set
+            private set
             {
                 if (_isActive != value)
                 {

@@ -572,7 +572,7 @@ namespace MuggPet.App.Activity
                             closeResetTimer.Start();
 
                             //
-                            ShowToast(exitMessage ?? DefaultExitMessage , ToastLength.Short, "Misc");
+                            ShowToast(exitMessage ?? DefaultExitMessage, ToastLength.Short, "Misc");
                         }
                         else
                         {
@@ -645,6 +645,136 @@ namespace MuggPet.App.Activity
 
         #endregion
 
+        #region Action Dispatch
+
+        private class ActionInfo
+        {
+            public MemberInfo Member { get; set; }
+
+            public Attribute Attribute { get; set; }
+        }
+
+        //  
+        private IList<MemberInfo> _actionMemberTargets;
+
+        //  Key action
+        private IList<ActionInfo> _keyActionsInfo;
+
+        //  Menu action
+        private IList<ActionInfo> _menuActionsInfo;
+
+        /// <summary>
+        /// Gets member which are suitable for action targets
+        /// </summary>
+        protected IList<MemberInfo> ActionMemberTargets
+        {
+            get
+            {
+                //
+                if (_actionMemberTargets != null)
+                    return _actionMemberTargets;
+
+                //  keep action targets
+                _actionMemberTargets = new List<MemberInfo>();
+                foreach (var member in GetType().GetMembers(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static))
+                {
+                    if (member.MemberType == MemberTypes.Field || member.MemberType == MemberTypes.Property || member.MemberType == MemberTypes.Method)
+                    {
+                        _actionMemberTargets.Add(member);
+                    }
+                }
+
+                return _actionMemberTargets;
+            }
+        }
+
+        private IList<ActionInfo> KeyActionsInfo
+        {
+            get
+            {
+                if (_keyActionsInfo != null)
+                    return _keyActionsInfo;
+
+                List<ActionInfo> _actions = new List<ActionInfo>();
+                foreach (var member in ActionMemberTargets)
+                {
+                    foreach (var attrib in member.GetCustomAttributes<KeyActionAttribute>())
+                        _actions.Add(new ActionInfo() { Attribute = attrib, Member = member });
+                }
+
+                _keyActionsInfo = _actions;
+                return _keyActionsInfo;
+            }
+        }
+
+        private IList<ActionInfo> MenuActionsInfo
+        {
+            get
+            {
+                if (_menuActionsInfo != null)
+                    return _menuActionsInfo;
+
+                List<ActionInfo> _actions = new List<ActionInfo>();
+                foreach (var member in ActionMemberTargets)
+                {
+                    foreach (var attrib in member.GetCustomAttributes<MenuActionAttribute>())
+                        _actions.Add(new ActionInfo() { Attribute = attrib, Member = member });
+                }
+
+                _menuActionsInfo = _actions;
+                return _menuActionsInfo;
+            }
+        }
+
+        public bool DispatchKeyAction(KeyEvent keyEvent)
+        {
+            bool executed = false;
+            foreach (var keyAction in KeyActionsInfo)
+            {
+                var attrib = ((KeyActionAttribute)keyAction.Attribute);
+                if (attrib.Key == keyEvent.KeyCode && attrib.Action == keyEvent.Action)
+                {
+                    var member = keyAction.Member;
+
+                    try
+                    {
+                        if (ExecuteActionMember(member, new[] { keyEvent }, keyEvent))
+                            executed = true;
+                    }
+                    catch
+                    {
+                        //  exception proof
+                    }
+                }
+            }
+
+            return executed;
+        }
+
+        private bool ExecuteActionMember(MemberInfo member, object[] methodArgs, object commandArgs)
+        {
+            if (member.MemberType == MemberTypes.Method)
+            {
+                var mInfo = ((MethodInfo)member);
+                var properties = mInfo.GetParameters();
+                mInfo.Invoke(this, (properties.Length > 0) ? methodArgs : null);
+                return true;
+            }
+            else if (member.MemberType == MemberTypes.Field || member.MemberType == MemberTypes.Property)
+            {
+                var val = member.GetMemberValue(this);
+                if (val is ICommand)
+                {
+                    var cmd = (ICommand)val;
+                    if (cmd.CanExecute(commandArgs))
+                        cmd.Execute(commandArgs);
+
+                    return true;
+                }
+            }
+
+            return false;
+        }
 
         /// <summary>
         /// Dispatches the selected menu item id
@@ -653,32 +783,23 @@ namespace MuggPet.App.Activity
         public bool DispatchSelected(int itemID, bool useContextMenu)
         {
             bool executed = false;
-            foreach (var member in GetType().GetMembers(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static).Where(x => x.MemberType == MemberTypes.Field || x.MemberType == MemberTypes.Property || x.MemberType == MemberTypes.Method))
+            foreach (var member in ActionMemberTargets)
             {
                 foreach (var menuAction in member.GetCustomAttributes<MenuActionAttribute>())
                 {
                     if (menuAction == null || itemID != menuAction.ID || (useContextMenu && !menuAction.UseContextMenu))
                         continue;
 
-                    if (member.MemberType == MemberTypes.Method)
+                    try
                     {
-                        var mInfo = ((MethodInfo)member);
-                        var properties = mInfo.GetParameters();
-                        mInfo.Invoke(this, (properties.Length > 0) ? new object[] { itemID } : null);
-                        executed = true;
-                    }
-                    else if (member.MemberType == MemberTypes.Field || member.MemberType == MemberTypes.Property)
-                    {
-                        var val = member.GetMemberValue(this);
-                        if (val is ICommand)
-                        {
-                            var cmd = (ICommand)val;
-                            if (cmd.CanExecute(itemID))
-                                cmd.Execute(itemID);
-
+                        if (ExecuteActionMember(member, new object[] { itemID }, itemID))
                             executed = true;
-                        }
                     }
+                    catch
+                    {
+                        //  exception proof
+                    }
+
                 }
             }
 
@@ -689,6 +810,8 @@ namespace MuggPet.App.Activity
         {
             return DispatchSelected(item.ItemId, false);
         }
+
+        #endregion
 
         public override bool OnOptionsItemSelected(IMenuItem item)
         {

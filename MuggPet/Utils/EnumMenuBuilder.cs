@@ -19,13 +19,16 @@ namespace MuggPet.Utils
         /// </summary>
         /// <param name="enumType">The enum type</param>
         /// <param name="menu">The menu to be populated</param>
-        public static bool Populate(Type enumType, IMenu menu, StringFormatOptions options = StringFormatOptions.CaseSeperation)
+        /// <param name="showAsAction">The show as action for each menu item</param>
+        public static bool Populate(Type enumType, IMenu menu, StringFormatOptions options = StringFormatOptions.CaseSeperation, ShowAsAction showAsAction = ShowAsAction.Always | ShowAsAction.WithText)
         {
             if (!enumType.IsEnum)
                 return false;
 
             foreach (var item in Enum.GetValues(enumType))
-                menu.Add(0, Convert.ToInt32(item), 0, StringUtil.FormatString(item.ToString(), options));
+            {
+                menu.Add(0, Convert.ToInt32(item), 0, StringUtil.FormatString(item.ToString(), options)).SetShowAsAction(showAsAction);
+            }
 
             return true;
         }

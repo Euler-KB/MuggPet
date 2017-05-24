@@ -72,7 +72,7 @@ namespace MuggPet.Views.VisualState
         public VisualStateManager(ViewGroup rootView)
         {
             if (rootView == null)
-                throw new ArgumentNullException("rootView", "The root view is required!");
+                throw new VisualStateException("Root view cannot be null. Please ensure root view is a valid reference!");
 
             //
             this.rootView = rootView;
@@ -746,6 +746,9 @@ namespace MuggPet.Views.VisualState
         /// <param name="obj">The object to be attached</param>
         public StateMemberDefinitionWrapper<T> HasObject<T>(T obj)
         {
+            if (obj == null)
+                throw new System.ArgumentNullException("State object cannot be null. Please ensure the object or view is valid reference!");
+
             SourceObject = obj;
             return new StateMemberDefinitionWrapper<T>(visualState, this);
         }
@@ -813,7 +816,7 @@ namespace MuggPet.Views.VisualState
                     member = (expression.Body as MemberExpression).Member;
                     break;
                 default:
-                    throw new NotSupportedException("Unsupported expression supplied. Only member access expressions are supported!");
+                    throw new VisualStateException("Unsupported expression supplied. Only member access expressions are supported!");
             }
 
             //  we currently deal with properties.... might improve in future

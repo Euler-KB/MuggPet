@@ -157,7 +157,7 @@ namespace MuggTester
 
         System.Random random = new System.Random();
 
-        public MainActivity() : base(Resource.Layout.Main, menuResourceID: Resource.Menu.menu_main, closeMethod: CloseMethod.System)
+        public MainActivity() : base(Resource.Layout.Main, menu: Resource.Menu.menu_main, closeMethod: CloseMethod.System)
         {
             LoadDataSource();
         }

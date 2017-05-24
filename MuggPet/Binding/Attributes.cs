@@ -28,7 +28,7 @@ namespace MuggPet.Binding
         None,
 
         /// <summary>
-        /// Useful when building dynamic views. If causes a new id to be generated for the target view. Only applicable with view attachment bindings
+        /// Useful when building dynamic views. This flag causes a new id to be generated for the target view. Only applicable with view attachment bindings
         /// </summary>
         GenerateViewID = 0x100000,
 
@@ -115,7 +115,7 @@ namespace MuggPet.Binding
         public virtual bool CanAttachView(View view, MemberInfo memberInfo, Type memberType)
         {
             //  We can attach only to views
-            return memberType.IsSubclassOf(typeof(View));
+            return memberType.IsSubclassOf(typeof(View)) || memberType == typeof(View);
         }
 
         /// <summary>

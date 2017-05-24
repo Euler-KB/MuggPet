@@ -23,7 +23,7 @@ namespace MuggPet.Utils
         CaseSeperation = 0x100,
 
         /// <summary>
-        /// Capitalizes the first character
+        /// Capitalizes only the very first character
         /// </summary>
         CapsFirstLetter = 0x200,
 
@@ -33,12 +33,12 @@ namespace MuggPet.Utils
         CapsAllFirstLetter = 0x400,
 
         /// <summary>
-        /// Capitalizes all characters
+        /// Capitalizes all characters. Not advisable to combine with AllLower flag
         /// </summary>
         AllUppper = 0x800,
 
         /// <summary>
-        /// Lowers all characters
+        /// Lowers all characters. Not advisable to combine with AllUpper flag
         /// </summary>
         AllLower = 0x010
     }

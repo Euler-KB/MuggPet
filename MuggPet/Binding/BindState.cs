@@ -12,6 +12,7 @@ using Android.Widget;
 using System.Reflection;
 using MuggPet.Commands;
 using MuggPet.Utils;
+using MuggPet.Binding.Logging;
 
 namespace MuggPet.Binding
 {
@@ -89,7 +90,7 @@ namespace MuggPet.Binding
         /// <summary>
         /// Executes the binding state
         /// </summary>
-        public bool Execute()
+        public bool Execute(IBindingResourceCache resourceCache = null)
         {
             switch (Mode)
             {
@@ -100,7 +101,7 @@ namespace MuggPet.Binding
                 case BindingMode.ViewContent:
                     return InternalBindViewContent();
                 case BindingMode.Resource:
-                    return InternalBindResource();
+                    return InternalBindResource(resourceCache);
                 case BindingMode.Command:
                     return InternalBindCommand();
             }
@@ -109,7 +110,7 @@ namespace MuggPet.Binding
         }
 
         /// <summary>
-        /// Reverts executed state
+        /// Reverts executed state. It is to be noted that not all operations are revertible
         /// </summary>
         public bool Revert()
         {
@@ -139,23 +140,40 @@ namespace MuggPet.Binding
 
         protected virtual bool InternalBindCommand()
         {
-            if (Source == null || Target == null)
+            //  check 
+            if (Source == null || Target == null || Attribute == null)
+            {
+                BindingTrace.TraceFail(BindingMode.Command, "Invalid parameters. 'Source', 'Attribute'and 'Target' are required!");
                 return false;
+            }
 
             ICommandBinding bindCommand = (ICommandBinding)Attribute;
+            if(bindCommand == null)
+            {
+
+            }
+
             return bindCommand.OnBind((ICommand)Source, (View)Target, Extras);
         }
 
         protected virtual void InternalUnBindCommand()
         {
-            ICommandBinding bindCommand = (ICommandBinding)Attribute;
+            ICommandBinding bindCommand = Attribute as ICommandBinding;
+            if(bindCommand == null)
+            {
+
+                return;
+            }
+
             bindCommand.OnUnBind();
         }
 
         protected virtual bool InternalAttachView()
         {
             if (TargetMember == null || Target == null)
+            {
                 return false;
+            }
 
             SetMemberValue(TargetMember, Target, Source);
 
@@ -165,7 +183,9 @@ namespace MuggPet.Binding
         protected virtual bool InternalBindViewContent()
         {
             if (TargetMember == null || Target == null || Source == null)
+            {
                 return false;
+            }
 
             var bindAttrib = ((IBindingAttribute)Attribute);
             SetMemberValue(TargetMember, Target, bindAttrib.OnBindViewContentToProperty((View)Source, TargetMember.GetReturnType()));
@@ -175,20 +195,50 @@ namespace MuggPet.Binding
         protected virtual bool InternalBindObjectToView()
         {
             if (Target == null || SourceMember == null || Source == null)
+            {
+                BindingTrace.TraceFail(BindingMode.ObjectToView, "Invalid parameters. Parameters 'Target', 'SourceMember' and 'Source' are required!");
                 return false;
+            }
 
             var bindAttrib = ((IBindingAttribute)Attribute);
             bindAttrib.OnBindPropertyToView((View)Target, SourceMember.GetMemberValue(Source), SourceMember.GetReturnType(), SourceMember);
             return true;
         }
 
-        protected virtual bool InternalBindResource()
+        protected virtual bool InternalBindResource(IBindingResourceCache resourceCache = null)
         {
+            //
             var resourceBind = ((IResourceAttribute)Attribute);
             Context context = (Context)Source;
-            var resource = resourceBind.LoadResource(context, TargetMember.GetReturnType());
-            if (resource != null)
+
+            //
+            if (resourceBind == null || context == null || TargetMember == null || Target == null)
+            {
+                BindingTrace.TraceFail(BindingMode.Resource, "Invalid parameters. Parameters 'Attribute', 'TargetMember', 'Target' and 'Source' are required!");
+                return false;
+            }
+
+            //  Load resource
+            object resource = null;
+            if (resourceCache != null)
+                resource = resourceCache.GetResource(resourceBind.ID);
+
+            //  failed loading from cache??
+            if (resource == null)
+            {
+                //  load resource
+                resourceBind.LoadResource(context, TargetMember.GetReturnType());
+            }
+
+            if (resource == null)
+            {
+                // TRACE ***
+                BindingTrace.TraceFail(BindingMode.Resource, $"Failed loading resource with id '{resourceBind.ID}'. Member: {TargetMember.Name}, Target: {Target.ToString()} ");
+            }
+            else
+            {
                 SetMemberValue(TargetMember, Target, resource);
+            }
 
             return resource != null;
         }

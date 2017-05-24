@@ -316,13 +316,28 @@ namespace MuggTester
             VisualState.GotoDefaultState();
         }
 
-        public DataCrunchActivity() : base(Resource.Layout.crunch_layout_main, menuResourceID: Resource.Menu.crunch_menu)
+        ICommand showCommand;
+        public ICommand ShowCommand
+        {
+            get
+            {
+                return showCommand ?? (showCommand = new RelayCommand(async (args) =>
+                {
+                    //
+                    await CommonDialogs.ShowMessage(this, "Hello", "The show command just executed! YAY!!!", "Love it", false);
+
+                }));
+            }
+        }
+
+        public DataCrunchActivity() : base(Resource.Layout.crunch_layout_main, menu: Resource.Menu.crunch_menu)
         {
 
         }
 
         protected override async void OnLoaded()
         {
+            //
             AttachSupportToolbar(Resource.Id.support_toolbar);
 
             //

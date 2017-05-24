@@ -13,6 +13,7 @@ using System.Reflection;
 using MuggPet.Views;
 using MuggPet.Commands;
 using MuggPet.Utils;
+using MuggPet.Binding.Logging;
 
 namespace MuggPet.Binding
 {
@@ -21,29 +22,18 @@ namespace MuggPet.Binding
     /// </summary>
     public class BindingHandler : IBindingHandler
     {
-
+        //  Holds binding frames
         private IDictionary<object, BindingFrame> _bindingFrames = new Dictionary<object, BindingFrame>();
+
+        //  The resource cache manager
+        private BindingResourceCache resourceCache;
 
         /// <summary>
         /// Gets the resource manager for the binding handler
         /// </summary>
-        public IBindingResourceCache ResourceManager
+        public virtual IBindingResourceCache ResourceManager
         {
-            get
-            {
-                return null;
-            }
-        }
-
-        /// <summary>
-        /// Returns the view the specified id
-        /// </summary>
-        protected View FindView(View container, int id)
-        {
-            if (id == BindConsts.RootViewId)
-                return container;
-
-            return container.FindViewById(id);
+            get { return resourceCache ?? (resourceCache = new BindingResourceCache()); }
         }
 
         /// <summary>
@@ -57,23 +47,17 @@ namespace MuggPet.Binding
             //  hold applied bindings here
             var appliedBindings = new List<KeyValuePair<Attribute, View>>();
 
-            //
-            IDictionary<int, View> _viewMap = new Dictionary<int, View>();
-
             //  apply all binding attribute on property or field
             foreach (var bindAttrib in member.GetCustomAttributes().OfType<IBindingAttribute>())
             {
                 //
-                View targetView;
-                if (!_viewMap.TryGetValue(bindAttrib.ID, out targetView))
-                {
-                    //  get target view
-                    targetView = FindView(containerView, bindAttrib.ID);
-                    _viewMap[bindAttrib.ID] = targetView;
-                }
-
+                View targetView = ResourceManager.GetView(containerView, bindAttrib.ID);
                 if (targetView == null)
+                {
+                    // TRACE ****
+                    BindingTrace.TraceFail(BindingMode.Attach, $"Could not find view id '{bindAttrib.ID}'. Member name: {member.Name} , Source: {obj.ToString()}");
                     continue;
+                }
 
                 //
                 if (!bindAttrib.CanAttachView(targetView, member, member.GetReturnType()))
@@ -91,8 +75,6 @@ namespace MuggPet.Binding
         }
 
 
-
-
         /// <summary>
         /// Scans for bindable attributes and their corresponding view
         /// </summary>
@@ -103,11 +85,7 @@ namespace MuggPet.Binding
         /// <param name="supportPropertyBinding">True to fetch property to view bindings</param>
         public IList<KeyValuePair<Attribute, View>> ProcessBindableAttributes(object obj, View containerView, MemberInfo member, bool supportViewContentBinding, bool supportPropertyBinding)
         {
-            //
             var appliedBindings = new List<KeyValuePair<Attribute, View>>();
-
-            //  cache for loaded views
-            IDictionary<int, View> _viewMap = new Dictionary<int, View>();
 
             //  apply all binding attributes
             foreach (var bindAttrib in member.GetCustomAttributes().OfType<IBindingAttribute>())
@@ -116,17 +94,15 @@ namespace MuggPet.Binding
                     continue;
 
                 //
-                View targetView;
-                if (!_viewMap.TryGetValue(bindAttrib.ID, out targetView))
+                View targetView = ResourceManager.GetView(containerView, bindAttrib.ID);
+                if (targetView == null)
                 {
-                    //  get target view
-                    targetView = FindView(containerView, bindAttrib.ID);
-                    _viewMap[bindAttrib.ID] = targetView;
+                    // TRACE ****
+                    BindingTrace.TraceFail(BindingMode.ObjectToView, $"Could not find view id '{bindAttrib.ID}'. Member name: {member.Name} , Source: {obj.ToString()}");
+                    continue;
                 }
 
-                if (targetView == null)
-                    continue;
-
+                //
                 if (supportPropertyBinding && !bindAttrib.CanBindPropertyToView(targetView, member.GetReturnType(), member))
                     continue;
 
@@ -152,21 +128,18 @@ namespace MuggPet.Binding
         /// </summary>
         /// <param name="containerView">The contianer view for resolving individual command views</param>
         /// <param name="member">The member under examination</param>
-        public IList<KeyValuePair<Attribute, View>> ProcessCommandBindings(View containerView, MemberInfo member)
+        public IList<KeyValuePair<Attribute, View>> ProcessCommandBindings(object source, View containerView, MemberInfo member)
         {
             var appliedBindings = new List<KeyValuePair<Attribute, View>>();
-            IDictionary<int, View> _viewMap = new Dictionary<int, View>();
             foreach (var cmdBind in member.GetCustomAttributes().OfType<ICommandBinding>())
             {
-                View srcView;
-                if (!_viewMap.TryGetValue(cmdBind.ID, out srcView))
-                {
-                    srcView = FindView(containerView, cmdBind.ID);
-                    _viewMap[cmdBind.ID] = srcView;
-                }
-
+                View srcView = ResourceManager.GetView(containerView, cmdBind.ID);
                 if (srcView == null)
+                {
+                    //  TRACE ***
+                    BindingTrace.TraceFail(BindingMode.ObjectToView, $"Could not find view id '{cmdBind.ID}'. Member name: {member.Name} , Source: {source.ToString()} , Container View: {containerView.GetType().Name}");
                     continue;
+                }
 
                 appliedBindings.Add(new KeyValuePair<Attribute, View>((Attribute)cmdBind, srcView));
             }
@@ -177,26 +150,35 @@ namespace MuggPet.Binding
 
         public bool AttachViewToProperty(View view, object source, MemberInfo member, BindFlags flags, bool update)
         {
+            if (source == null)
+                throw new BindingException("Source cannot be null!");
+
+            if (view == null)
+                throw new BindingException("View cannot be null!");
+
+            if (member == null)
+                throw new BindingException("Member info required!");
+
             var frame = GetBindingFrame(source);
-            var existingBindings = frame.ViewAttachment.Where(x => x.Target.Equals(source) &&
-                                                                    x.TargetMember.Equals(member));
+            var existingBindings = frame.ViewAttachment.Where(x => x.Target.Equals(source) && x.TargetMember.Equals(member));
             if (update && existingBindings.Count() > 0)
             {
-                IDictionary<int, View> _viewMap = new Dictionary<int, View>();
                 foreach (var rBinding in existingBindings)
                 {
                     int viewId = ((IBindingAttribute)rBinding.Attribute).ID;
-                    View srcView;
-                    if (!_viewMap.TryGetValue(viewId, out srcView))
+                    View srcView = ResourceManager.GetView(view, viewId);
+                    if (srcView == null)
                     {
-                        srcView = FindView(view, viewId);
-                        _viewMap[viewId] = srcView;
+                        //  TRACE ***
+
+                        continue;
                     }
-
-                    //  update view before updating bind
-                    rBinding.Source = srcView;
-
-                    rBinding.Execute();
+                    else
+                    {
+                        //  update view before updating bind
+                        rBinding.Source = srcView;
+                        rBinding.Execute();
+                    }
                 }
 
                 return true;
@@ -231,24 +213,24 @@ namespace MuggPet.Binding
             BindingFrame frame = GetBindingFrame(obj);
             var existingBindings = frame.ObjectViewBindings.Where(x => x.Source.Equals(obj) &&
                                                                        x.SourceMember.Equals(member)).ToArray();
-
             if (update && existingBindings.Count() > 0)
             {
-                IDictionary<int, View> _viewMap = new Dictionary<int, View>();
                 foreach (var rBinding in existingBindings)
                 {
                     int viewId = ((IBindingAttribute)rBinding.Attribute).ID;
-                    View srcView;
-                    if (!_viewMap.TryGetValue(viewId, out srcView))
+                    View srcView = ResourceManager.GetView(view, viewId);
+
+                    if (srcView == null)
                     {
-                        srcView = FindView(view, viewId);
-                        _viewMap[viewId] = srcView;
+                        //  TRACE ***
+
                     }
-
-                    //  update view before updating bind
-                    rBinding.Target = srcView;
-
-                    rBinding.Execute();
+                    else
+                    {
+                        //  update view before updating bind
+                        rBinding.Target = srcView;
+                        rBinding.Execute();
+                    }
                 }
 
                 return true;
@@ -281,27 +263,36 @@ namespace MuggPet.Binding
 
         public bool BindViewContent(View view, object source, MemberInfo member, bool update)
         {
+            if (source == null)
+                throw new BindingException("Source cannot be null!");
+
+            if (view == null)
+                throw new BindingException("View cannot be null!");
+
+            if (member == null)
+                throw new BindingException("Member cannot be null!");
+
             var frame = GetBindingFrame(source);
             var existingBindings = frame.ViewContentBindings.Where(x => x.Target.Equals(source) &&
                                                                         x.TargetMember.Equals(member));
 
             if (update && existingBindings.Count() > 0)
             {
-                IDictionary<int, View> _viewMap = new Dictionary<int, View>();
                 foreach (var rBinding in existingBindings)
                 {
                     int viewId = ((IBindingAttribute)rBinding.Attribute).ID;
-                    View srcView;
-                    if (!_viewMap.TryGetValue(viewId, out srcView))
+                    View srcView = ResourceManager.GetView(view, viewId);
+                    if (srcView == null)
                     {
-                        srcView = FindView(view, viewId);
-                        _viewMap[viewId] = srcView;
+                        //  TRACE ***
+
                     }
-
-                    //  update view before updating bind
-                    rBinding.Source = srcView;
-
-                    rBinding.Execute();
+                    else
+                    {
+                        //  update view before updating bind
+                        rBinding.Source = srcView;
+                        rBinding.Execute();
+                    }
                 }
 
                 return true;
@@ -369,6 +360,19 @@ namespace MuggPet.Binding
 
         public bool BindResource(Context context, object target, MemberInfo member, bool update)
         {
+            //  Check context
+            if (context == null)
+                throw new BindingException("Context cannot be null!");
+
+            //  Check target
+            if (target == null)
+                throw new BindingException("Target cannot be null!");
+
+            //  Check member
+            if (member == null)
+                throw new BindingException("Member info required!");
+
+            //
             var frame = GetBindingFrame(target);
             var existingBindings = frame.ResourceBindings.Where(x => x.Target.Equals(target) &&
                                                                      x.TargetMember.Equals(member));
@@ -378,8 +382,7 @@ namespace MuggPet.Binding
                 {
                     //  Update context (just in case)
                     rBinding.Source = context;
-
-                    rBinding.Execute();
+                    rBinding.Execute(ResourceManager);
                 }
 
                 return true;
@@ -399,7 +402,7 @@ namespace MuggPet.Binding
                     };
 
                     //
-                    if (state.Execute())
+                    if (state.Execute(ResourceManager))
                         frame.ResourceBindings.Add(state);
                 }
 
@@ -409,18 +412,21 @@ namespace MuggPet.Binding
             return false;
         }
 
-        private void InternalDestroyFrame(BindingFrame frame)
+        private void ClearState(IList<BindState> bindStates)
         {
-            //  revert all command bindings
-            foreach (var item in frame.CommandBindings)
+            foreach (var item in bindStates)
                 item.Revert();
 
-            //  clear all other binding operations
-            frame.CommandBindings.Clear();
-            frame.ObjectViewBindings.Clear();
-            frame.ResourceBindings.Clear();
-            frame.ViewAttachment.Clear();
-            frame.ViewContentBindings.Clear();
+            bindStates.Clear();
+        }
+
+        private void InternalDestroyFrame(BindingFrame frame)
+        {
+            ClearState(frame.CommandBindings);
+            ClearState(frame.ObjectViewBindings);
+            ClearState(frame.ResourceBindings);
+            ClearState(frame.ViewAttachment);
+            ClearState(frame.ViewContentBindings);
         }
 
         public bool Destroy(object target)
@@ -428,8 +434,18 @@ namespace MuggPet.Binding
             BindingFrame frame;
             if (_bindingFrames.TryGetValue(target, out frame))
             {
+                //  destroy frame
                 InternalDestroyFrame(frame);
+
+                //  remove frame
                 _bindingFrames.Remove(target);
+
+                //  clear associated resources
+                if (target is View)
+                {
+                    ResourceManager.RemoveView((View)target);
+                }
+
                 return true;
             }
 
@@ -438,8 +454,21 @@ namespace MuggPet.Binding
 
         public bool BindCommandDirect(object source, ICommand command, View destinationView, object parameter, bool update)
         {
+            //  check source
+            if (source == null)
+                throw new BindingException("Source cannot be null!");
+
+            //  check command
+            if (command == null)
+                throw new BindingException("Command cannot be null!");
+
+            //  check destinationView
+            if (destinationView == null)
+                throw new BindingException("Destination view cannot be null!");
+
+            //  
             var frame = GetBindingFrame(source);
-            if (command != null && !frame.CommandBindings.Any(x => x.Source.Equals(command) && x.Target.Equals(destinationView)))
+            if (!frame.CommandBindings.Any(x => x.Source.Equals(command) && x.Target.Equals(destinationView)))
             {
                 var state = new BindState()
                 {
@@ -460,15 +489,31 @@ namespace MuggPet.Binding
 
         public bool BindCommand(object source, MemberInfo member, View destinationView, object parameter, bool update)
         {
+            if (source == null)
+                throw new BindingException("Source cannot be null!");
+
+            if (member == null)
+                throw new BindingException("Member info required!");
+
+            if (destinationView == null)
+                throw new BindingException("Destination view cannot be null!");
+
             if (!member.GetReturnType().HasInterface<ICommand>())
                 return false;
 
             //
             var frame = GetBindingFrame(source);
             ICommand command = member.GetMemberValue(source) as ICommand;
-            if (command != null && !frame.CommandBindings.Any(x => x.Source.Equals(command) && x.TargetMember.Equals(member)))
+            if (command == null)
             {
-                var bindings = ProcessCommandBindings(destinationView, member);
+                //  TRACE ***
+
+                return false;
+            }
+
+            if (!frame.CommandBindings.Any(x => x.Source.Equals(command) && x.TargetMember.Equals(member)))
+            {
+                var bindings = ProcessCommandBindings(source, destinationView, member);
                 foreach (var cmdBind in bindings)
                 {
                     var state = new BindState()
@@ -493,9 +538,11 @@ namespace MuggPet.Binding
 
         public void Reset()
         {
+            //  destroy each frame before clearing
             foreach (var frame in _bindingFrames.Values)
                 InternalDestroyFrame(frame);
 
+            //  clear frames
             _bindingFrames.Clear();
         }
 
@@ -503,6 +550,13 @@ namespace MuggPet.Binding
         {
             var frame = GetBindingFrame(source);
             ICommand command = member.GetMemberValue(source) as ICommand;
+            if (command == null)
+            {
+                //  TRACE   ***
+                BindingTrace.TraceFail(BindingMode.Command, $"Invalid command specified. Unbinding operation cancelled! Member: {member.Name} , Source: {source.ToString()}");
+                return false;
+            }
+
             var bindings = frame.CommandBindings.Where(x => x.TargetMember.Equals(member) && x.Source.Equals(command));
             foreach (var bind in bindings)
             {
@@ -515,6 +569,15 @@ namespace MuggPet.Binding
 
         public bool UnBindCommandDirect(object source, ICommand command, View targetView)
         {
+            if (source == null)
+                throw new BindingException("Source cannot be null!");
+
+            if (command == null)
+                throw new BindingException("Command cannot be null!");
+
+            if (targetView == null)
+                throw new BindingException("Target view cannot be null!");
+
             var frame = GetBindingFrame(source);
             var bind = frame.CommandBindings.FirstOrDefault(x => x.Source.Equals(command) && x.Target.Equals(targetView) &&
                 //this will ensure it was through direct binding (:-

@@ -49,7 +49,7 @@ namespace MuggPet.Views
         public static IList<View> GetChildViews(this ViewGroup viewGroup)
         {
             List<View> views = new List<View>();
-            for(int i = 0; i < viewGroup.ChildCount; i++)
+            for (int i = 0; i < viewGroup.ChildCount; i++)
                 views.Add(viewGroup.GetChildAt(i));
 
             return views;
@@ -79,6 +79,38 @@ namespace MuggPet.Views
             return null;
         }
 
+
+        #region View Measurement
+
+        /// <summary>
+        /// Measures the width and height of the specified view
+        /// </summary>
+        /// <param name="view">The view to measure</param>
+        /// <param name="width">The width of the measured view</param>
+        /// <param name="height">The height of the measured view</param>
+        /// <param name="maxHeight">The maximum height for measurement</param>
+        /// <param name="maxWidth">The maximum width for measurement</param>
+        public static void Measure(this View view, int maxWidth, int maxHeight, out int width, out int height)
+        {
+            view.Measure(View.MeasureSpec.MakeMeasureSpec(maxWidth, MeasureSpecMode.AtMost),
+               View.MeasureSpec.MakeMeasureSpec(maxHeight, MeasureSpecMode.AtMost));
+
+            width = view.MeasuredWidth;
+            height = view.MeasuredHeight;
+        }
+
+        /// <summary>
+        /// Measures the view within the specified layout
+        /// </summary>
+        /// <param name="layoutResID">The view to measure</param>
+        /// <param name="width">The width of the measured view</param>
+        /// <param name="height">The height of the measured view</param>
+        public static void Measure(this Context context, int layoutResID, int maxWidth, int maxHeight, out int width, out int height)
+        {
+            var view = LayoutInflater.FromContext(context).Inflate(layoutResID, null, false);
+            Measure(view, maxWidth, maxHeight, out width, out height);
+        }
+
         /// <summary>
         /// Measures the width and height of the specified view
         /// </summary>
@@ -87,10 +119,7 @@ namespace MuggPet.Views
         /// <param name="height">The height of the measured view</param>
         public static void MeasureInfite(this View view, out int width, out int height)
         {
-            view.Measure(View.MeasureSpec.MakeMeasureSpec(int.MaxValue, MeasureSpecMode.AtMost),
-               View.MeasureSpec.MakeMeasureSpec(int.MaxValue, MeasureSpecMode.AtMost));
-            width = view.MeasuredWidth;
-            height = view.MeasuredHeight;
+            Measure(view, int.MaxValue, int.MaxValue, out width, out height);
         }
 
         /// <summary>
@@ -104,5 +133,8 @@ namespace MuggPet.Views
             var view = LayoutInflater.FromContext(context).Inflate(layoutResID, null, false);
             MeasureInfite(view, out width, out height);
         }
+
+        #endregion
+
     }
 }
